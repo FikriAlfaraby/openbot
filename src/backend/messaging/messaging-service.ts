@@ -110,7 +110,7 @@ export interface MessagingAgents {
   /** Fork: the gate of a message, before any agent sees it (`fork/gate.ts`). Absent accepts all. */
   gate?(record: MessagingConnectionRecord, message: InboundMessage): "accept" | "observe" | "drop";
   /** Fork: the host's own reply to a chat command such as `/tiket`, or null (`fork/chat-commands.ts`). */
-  command?(link: MessagingLink, text: string): string | null;
+  command?(link: MessagingLink, text: string, sender: { platform: string; authorId: string }): string | null;
 }
 
 export interface MessagingServiceOptions {
@@ -1183,7 +1183,11 @@ export class MessagingService {
     }
     // Fork (item 5.2): a chat command that the host answers itself, with no agent turn.
     if (existing && message.files.length === 0) {
-      const reply = this.#agents.command?.(existing, message.text) ?? null;
+      const reply =
+        this.#agents.command?.(existing, message.text, {
+          platform: live.record.platform,
+          authorId: message.authorId,
+        }) ?? null;
       if (reply !== null) {
         yield* live.adapter.post(message.target, { text: reply }).pipe(Effect.catch(() => Effect.void));
         return;

@@ -133,6 +133,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - [x] 5.8 `/bantuan` and `/help` in the Router's chat (product need: a non-IT team cannot guess the
       commands, and the host cannot set the Telegram bot's command menu, which the account service
       owns). The host lists what a person can do (`helpReply`).
+- [x] 5.9 `/selesai <number>` sign-off (article §4.2: a person is asked only for decisions and
+      sign-offs). A ticket in `review` waited for a Router turn to close; now its requester closes
+      it as `done` from the chat (`signOffReply`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -195,6 +198,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.7: `/tiket <n>` leaves out ticket notes (the Router's and Watchdog's working log) and
   shows tickets of the same conversation only. Times are in UTC, since the host does not know the
   reader's time zone.
+
+- Item 5.9: only the requester in the ticket's mandate signs off, and only from `review`; a ticket
+  without a person in its mandate (opened by an agent) is closed by the Router as before. The
+  Router hears of the sign-off through the ticket context of its next message, not at once.
 
 ## Findings
 

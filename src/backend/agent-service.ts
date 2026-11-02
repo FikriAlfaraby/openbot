@@ -233,7 +233,7 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
-import { chatCommandOf, helpReply, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
+import { chatCommandOf, helpReply, signOffReply, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
 import type { DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
@@ -5365,7 +5365,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
   /** Fork: the host's reply to a chat command in the Router's conversation (item 5.2), or null. */
-  chatCommandReply(link: MessagingLink, text: string): string | null {
+  chatCommandReply(link: MessagingLink, text: string, sender: { platform: string; authorId: string }): string | null {
     const command = chatCommandOf(text);
     if (!command || forkRoleOf(this.#store.sharedRoot, link.agentId) !== "router") return null;
     try {
@@ -5374,6 +5374,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       const language = forkCommandLanguage(this.#store.sharedRoot);
       const name = (id: string) => names.get(id) ?? null;
       if (command.kind === "help") return helpReply(language);
+      if (command.kind === "done") return signOffReply(store, link.linkId, command.number, sender, language);
       return command.kind === "ticket"
         ? ticketDetailReply(store, link.linkId, command.number, name, language)
         : ticketStatusReply(store, link.linkId, name, language);

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { chatCommandOf, helpReply, ticketDetailReply, ticketStatusReply } from "./chat-commands";
+import { chatCommandOf, helpReply, signOffReply, ticketDetailReply, ticketStatusReply } from "./chat-commands";
 import { parseForkConfig } from "./fork-config";
 import { messagingThreadKey } from "./tickets/pass-through";
 import { TicketStore } from "./tickets/ticket-store";
@@ -133,5 +133,60 @@ describe("/bantuan (item 5.8)", () => {
       expect(text).toContain("stop");
     }
     expect(helpReply()).toContain("Cara memakai bot ini");
+  });
+});
+
+describe("/selesai <number> (item 5.9)", () => {
+  const fikri = { platform: "telegram", authorId: "42" };
+
+  function inReview(title: string, sender: { platform: string; authorId: string } | null = fikri) {
+    const created = ticket(title);
+    store.setMandate(
+      created.ticketId,
+      { version: 1, strength: "explicit", scope: "", sender, policyVersion: "", grantedAt: "" },
+      "router",
+    );
+    store.assign(created.ticketId, "coder", `task-${title}`, "router");
+    store.transition(created.ticketId, "review", { actor: "coder", summary: "Siap." });
+    return created;
+  }
+
+  it("reads the command with a number only", () => {
+    expect(chatCommandOf("/selesai 12")).toEqual({ kind: "done", number: 12 });
+    expect(chatCommandOf("/done@OpenBotTim_bot #3")).toEqual({ kind: "done", number: 3 });
+    expect(chatCommandOf("/selesai")).toBeNull();
+  });
+
+  it("lets the requester close a ticket in review", () => {
+    const work = inReview("Laporan");
+    expect(signOffReply(store, "link-1", work.number, fikri, "id")).toBe(
+      `Tiket #${work.number} ditutup sebagai selesai. Terima kasih!`,
+    );
+    expect(store.get(work.ticketId)?.state).toBe("done");
+    expect(store.events(work.ticketId).at(-1)).toMatchObject({ actor: "person:telegram:42", toState: "done" });
+  });
+
+  it("refuses another person, an agent-made ticket, and a ticket not in review", () => {
+    const work = inReview("Laporan");
+    expect(signOffReply(store, "link-1", work.number, { platform: "telegram", authorId: "7" }, "id")).toContain(
+      "Hanya orang yang meminta",
+    );
+    expect(signOffReply(store, "link-1", work.number, { platform: "slack", authorId: "42" }, "en")).toContain(
+      "Only the person",
+    );
+    const agentMade = inReview("Otomatis", null);
+    expect(signOffReply(store, "link-1", agentMade.number, fikri, "id")).toContain("Hanya orang yang meminta");
+    store.transition(work.ticketId, "working", { actor: "coder" });
+    expect(signOffReply(store, "link-1", work.number, fikri, "id")).toBe(
+      `Tiket #${work.number} belum siap dicek (status: dikerjakan), jadi belum bisa ditutup.`,
+    );
+    expect(signOffReply(store, "link-2", work.number, fikri, "id")).toBe(
+      `Tiket #${work.number} tidak ada di percakapan ini.`,
+    );
+  });
+
+  it("is in the help text", () => {
+    expect(helpReply("id")).toContain("/selesai 12");
+    expect(helpReply("en")).toContain("/done 12");
   });
 });

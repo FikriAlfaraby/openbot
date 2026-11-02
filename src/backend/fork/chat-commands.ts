@@ -13,11 +13,21 @@
 //
 // Item 5.8: `/bantuan` (or `/help`) lists what a person can do in the chat. The OpenBot Telegram bot
 // belongs to the account service, so the host cannot set the bot's command menu; this is the menu.
+//
+// Item 5.9: `/selesai 12` (or `/done 12`) is the sign-off of the article (section 4.2: a person is
+// asked only for decisions and sign-offs). The person who asked for the work closes a ticket that
+// waits in `review` as `done`, with no Router turn. Only that person: the platform and user id in
+// the ticket's mandate must match the sender.
 
+import { parseMandate } from "./tickets/mandate";
 import { messagingThreadKey } from "./tickets/pass-through";
 import type { Ticket, TicketState, TicketStore } from "./tickets/ticket-store";
 
-export type ChatCommand = { kind: "tickets" } | { kind: "ticket"; number: number } | { kind: "help" };
+export type ChatCommand =
+  | { kind: "tickets" }
+  | { kind: "ticket"; number: number }
+  | { kind: "help" }
+  | { kind: "done"; number: number };
 export type CommandLanguage = "id" | "en";
 
 const COMMAND = /^\/(tiket|tickets|status)(@[A-Za-z0-9_]{1,64})?(?:\s+#?(\d{1,7}))?\s*$/iu;
@@ -25,9 +35,12 @@ const RECENT_END_MS = 24 * 60 * 60_000;
 const MAX_LINES = 15;
 
 const HELP_COMMAND = /^\/(bantuan|help)(@[A-Za-z0-9_]{1,64})?\s*$/iu;
+const DONE_COMMAND = /^\/(selesai|done)(@[A-Za-z0-9_]{1,64})?\s+#?(\d{1,7})\s*$/iu;
 
 export function chatCommandOf(text: string): ChatCommand | null {
   if (HELP_COMMAND.test(text.trim())) return { kind: "help" };
+  const done = DONE_COMMAND.exec(text.trim());
+  if (done) return { kind: "done", number: Number(done[3]) };
   const match = COMMAND.exec(text.trim());
   if (!match) return null;
   return match[3] ? { kind: "ticket", number: Number(match[3]) } : { kind: "tickets" };
@@ -168,6 +181,7 @@ const HELP: Record<CommandLanguage, string> = {
     "- Balas pesan bot untuk menjawab pertanyaannya atau mengubah pekerjaan yang sedang jalan.",
     "- /tiket: daftar tiket di percakapan ini.",
     "- /tiket 12: detail tiket #12 (status, pertanyaan, ringkasan).",
+    "- /selesai 12: setujui hasil tiket #12 yang siap dicek dan tutup tiketnya (hanya peminta).",
     "- stop: hentikan jawaban yang sedang ditulis bot.",
     "- /bantuan: pesan ini.",
   ].join("\n"),
@@ -177,6 +191,7 @@ const HELP: Record<CommandLanguage, string> = {
     "- Reply to the bot's message to answer its question or change work in progress.",
     "- /tiket: the tickets of this conversation.",
     "- /tiket 12: ticket #12 in detail (state, question, summary).",
+    "- /done 12: sign off ticket #12 when it is ready to check, and close it (the requester only).",
     "- stop: stop the answer the bot is writing.",
     "- /help: this message.",
   ].join("\n"),
@@ -185,4 +200,46 @@ const HELP: Record<CommandLanguage, string> = {
 /** The reply to `/bantuan` (item 5.8). */
 export function helpReply(language: CommandLanguage = "id"): string {
   return HELP[language];
+}
+
+const DONE_WORDS: Record<
+  CommandLanguage,
+  { closed: (n: number) => string; notReview: (n: number, state: string) => string; notRequester: string }
+> = {
+  id: {
+    closed: (n) => `Tiket #${n} ditutup sebagai selesai. Terima kasih!`,
+    notReview: (n, state) => `Tiket #${n} belum siap dicek (status: ${state}), jadi belum bisa ditutup.`,
+    notRequester: "Hanya orang yang meminta pekerjaan ini yang bisa menutup tiketnya. Minta bantuan Router bila perlu.",
+  },
+  en: {
+    closed: (n) => `Ticket #${n} is closed as done. Thank you!`,
+    notReview: (n, state) => `Ticket #${n} is not ready to check (state: ${state}), so it cannot be closed yet.`,
+    notRequester: "Only the person who asked for this work can close its ticket. Ask the Router if needed.",
+  },
+};
+
+/**
+ * The reply to `/selesai <number>` (item 5.9): closes a ticket of this conversation that waits in
+ * `review`, when the sender is the person in its mandate.
+ */
+export function signOffReply(
+  store: TicketStore,
+  linkId: string,
+  number: number,
+  sender: { platform: string; authorId: string },
+  language: CommandLanguage = "id",
+): string {
+  const words = WORDS[language];
+  const done = DONE_WORDS[language];
+  const ticket = store.subscribers(messagingThreadKey(linkId)).find((candidate) => candidate.number === number);
+  if (!ticket) return words.notHere(number);
+  const requester = parseMandate(ticket.mandateJson)?.sender;
+  if (!requester || requester.platform !== sender.platform || requester.authorId !== sender.authorId)
+    return done.notRequester;
+  if (ticket.state !== "review") return done.notReview(number, words.states[ticket.state]);
+  store.transition(ticket.ticketId, "done", {
+    actor: `person:${sender.platform}:${sender.authorId}`,
+    note: "Signed off by the requester in chat.",
+  });
+  return done.closed(number);
 }

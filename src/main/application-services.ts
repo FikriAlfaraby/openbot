@@ -761,7 +761,7 @@ async function createMessagingServices({
       deleteAgent: (agentId) => service.deleteAgent(agentId),
       sidebarChatIds: () => service.sidebarChatIds(),
       shapeAnswer: (agentId, text) => service.shapeChatAnswer(agentId, text),
-      command: (link, text) => service.chatCommandReply(link, text),
+      command: (link, text, sender) => service.chatCommandReply(link, text, sender),
       gate: (record, message) => service.gateChatMessage(record, message),
     },
     credentials: messagingCredentials,

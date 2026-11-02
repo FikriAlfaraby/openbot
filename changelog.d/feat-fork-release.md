@@ -16,3 +16,4 @@
 - Show each agent's 24-hour spending against its budget in `openbot doctor`, with a warning from 80%.
 - Answer `/tiket <number>` with one ticket's question, summary and last steps.
 - Answer `/bantuan` and `/help` in the Router's chat with the commands a person can use.
+- Let a ticket's requester sign off a ticket in review with `/selesai <number>` in the Router's chat.

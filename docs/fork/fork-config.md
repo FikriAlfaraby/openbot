@@ -122,6 +122,11 @@ another conversation is not shown. The Router's and the Watchdog's notes are lef
 `/tiket`, `/tiket 12`, and `stop` (item 5.8). The OpenBot Telegram bot belongs to the account
 service, so OpenBot cannot set its command menu; this reply takes its place.
 
+`/selesai 12` (or `/done 12`) signs off ticket #12 (item 5.9): when it waits in `review`, it moves
+to `done`. Only the person who asked for the work can do it: the platform and user id in the
+ticket's mandate must match the sender. A ticket that an agent opened, or one of another
+conversation, is not closed this way; the Router can still close it.
+
 ## Check the setup (item 5.3)
 
 ```sh
