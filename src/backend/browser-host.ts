@@ -157,6 +157,7 @@ import {
   parseBrowserToolCall,
 } from "./browser-tools";
 import { runCauseEffect } from "./effect-boundary";
+import { ticketBrowserSession, usesTicketSession } from "./fork/browser-ticket";
 import type { DynamicToolCallParams, DynamicToolResult } from "./protocol";
 import { isRecord } from "./protocol";
 import type { VaultCardSecret } from "./vault-items";
@@ -371,6 +372,7 @@ export class BrowserHost {
   readonly #tabSessions = new Map<string, Session>();
   readonly #browserProfile: (agentId: string) => AgentBrowserProfile;
   readonly #profileExists: (profileId: string) => boolean;
+  readonly #forkTicketOf: (threadId: string) => string | null;
   readonly #downloadsRoot: string;
   readonly #statePath: string;
   readonly #tabs = new Map<string, BrowserHostTab>();
@@ -422,12 +424,15 @@ export class BrowserHost {
       browserProfile?: (agentId: string) => AgentBrowserProfile;
       /** Whether a named profile still exists. A tab never opens in a deleted profile. */
       profileExists?: (profileId: string) => boolean;
+      /** Fork (item 4.3): the live ticket whose worker runs in this thread, or null. */
+      forkTicketOf?: (threadId: string) => string | null;
     } = {},
   ) {
     this.#window = window;
     this.#memoryLow = options.memoryLow ?? (() => false);
     this.#browserProfile = options.browserProfile ?? (() => ({ kind: "shared" }));
     this.#profileExists = options.profileExists ?? (() => false);
+    this.#forkTicketOf = options.forkTicketOf ?? (() => null);
     this.#downloadsRoot = downloadsRoot;
     this.#statePath = statePath;
     this.#session = session.fromPartition("persist:openbot-browser", { cache: true });
@@ -782,7 +787,8 @@ export class BrowserHost {
     if (this.#memoryLow()) return yield* browserFailure(new Error(sourceText("error.backend.browserLowMemory")));
     const normalizedUrl = yield* browserSync(() => normalizeBrowserUrl(url));
     const previouslyFocused = focus ? null : this.#focusedContentsOutsideTabs();
-    const tabSession = privateSession || !ownerAgentId ? undefined : yield* this.#agentTabSession(ownerAgentId);
+    const tabSession =
+      privateSession || !ownerAgentId ? undefined : yield* this.#agentTabSession(ownerAgentId, ownerThreadId);
     const tab = this.#createTab(
       randomUUID(),
       normalizedUrl,
@@ -2540,6 +2546,16 @@ export class BrowserHost {
     yield* browserCall(() => target.clearCache());
   }).bind(this);
 
+  /** Fork (item 4.3): closes the tabs of an ended ticket and deletes its session's data. */
+  readonly clearForkTicketSession = Effect.fn("BrowserHost.clearForkTicketSession")(function* (
+    this: BrowserHost,
+    ticketId: string,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    const tabSession = ticketBrowserSession(ticketId);
+    for (const tabId of this.tabIdsInSession(tabSession)) yield* this.close(tabId);
+    yield* this.clearTabSession(tabSession);
+  }).bind(this);
+
   /** The open tabs in a session other than the shared one, popups included. */
   tabIdsInSession(tabSession: BrowserTabSession): string[] {
     const partition = browserTabPartition(tabSession);
@@ -2559,8 +2575,12 @@ export class BrowserHost {
   readonly #agentTabSession = Effect.fn("BrowserHost.agentTabSession")(function* (
     this: BrowserHost,
     agentId: string,
+    ownerThreadId: string | null = null,
   ): Effect.fn.Return<BrowserTabSession | undefined, BrowserOperationError> {
     const profile = this.#browserProfile(agentId);
+    // Fork (item 4.3): a tab of a live ticket's thread opens in the ticket's own session.
+    const ticketId = ownerThreadId ? this.#forkTicketOf(ownerThreadId) : null;
+    if (usesTicketSession(profile, ticketId)) return ticketBrowserSession(ticketId);
     if (profile.kind === "shared") return undefined;
     if (profile.kind === "agent") return { kind: "agent", key: agentBrowserSessionKey(agentId) };
     if (!this.#profileExists(profile.profileId))

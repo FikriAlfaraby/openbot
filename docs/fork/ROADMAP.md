@@ -92,7 +92,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       resume/close; it judges progress, not only liveness.
 - [x] 4.2 Token budget per agent and a loop guard for repeated failing tool calls
       (`src/backend/fork/budget.ts`, `loop-guard.ts`, `docs/fork/fork-config.md`).
-- [ ] 4.3 Browser session per ticket (`openbot-browser-ticket-<id>`), removed when the ticket ends.
+- [x] 4.3 Browser session per ticket, removed when the ticket ends (`src/backend/fork/browser-ticket.ts`,
+      `docs/fork/tickets.md`).
 - [ ] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
       one Router turn together; today `startDelivery` runs each external message alone.
 - [ ] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
@@ -125,6 +126,10 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   the queue (nothing fails), and lets the owner's own app message through. No budget is set by
   default; set `budget` in `fork-config.yaml`. The loop guard refuses after 3 identical failures in
   10 minutes; these numbers are fixed, not settings.
+
+- Item 4.3: the ticket session is an agent-kind partition `openbot-browser-agent-<hash>` with the
+  hash of `fork-ticket:<ticket id>`, not a new `openbot-browser-ticket-<id>` kind: a new kind would
+  change the saved browser state that upstream owns. A named profile of the agent wins over it.
 
 ## Findings
 
@@ -176,3 +181,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - Item 4.2: OpenBot sees only its own tools, so the loop guard cannot see a provider's `Bash` loop;
   the budget and the Watchdog cover those. A budget is checked when a turn starts, so one long turn
   can go past it.
+- Item 4.3: BrowserHost has no unit tests in upstream (it needs Electron); the fork tests the
+  session choice and the sweep, and the BrowserHost wiring is checked by the type checker only.

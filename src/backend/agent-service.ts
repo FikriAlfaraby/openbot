@@ -231,6 +231,7 @@ import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
+import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetNote, ForkBudget } from "./fork/budget";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
@@ -5184,6 +5185,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * stuck (item 4.1). Skips while an earlier wake waits in its queue. A failure skips this check.
    */
   #watchdogTick(): void {
+    // Fork (item 4.3): the browser sessions of ended tickets go.
+    try {
+      this.#sweepTicketBrowsers();
+    } catch {
+      // The next tick sweeps again.
+    }
     // Fork (item 4.2): an agent whose budget no longer holds it starts its queue again.
     try {
       for (const agentId of this.#forkBudgetState().released()) this.#drain.scheduleDrain(agentId);
@@ -5232,6 +5239,34 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   #forkBudget: ForkBudget | null = null;
+  /** Fork (item 4.3): the ended tickets whose browser session this process cleared. */
+  readonly #clearedTicketSessions = new Set<string>();
+
+  /** Fork (item 4.3): the live ticket whose worker runs in this thread, for its browser session. */
+  forkTicketForThread(threadId: string): string | null {
+    try {
+      return liveTicketOfTask(ticketStoreFor(dirname(this.#store.automationRoot)), this.#tasks.taskForThread(threadId));
+    } catch {
+      return null;
+    }
+  }
+
+  /** Fork (item 4.3): closes the tabs of the tickets that ended and deletes their browser sessions. */
+  #sweepTicketBrowsers(): void {
+    const clear = this.#browser.clearForkTicketSession?.bind(this.#browser);
+    if (!clear) return;
+    Effect.runFork(
+      sweepTicketBrowserSessions(
+        ticketStoreFor(dirname(this.#store.automationRoot)),
+        clear,
+        this.#clearedTicketSessions,
+      ).pipe(
+        Effect.catch(() => Effect.void),
+        Effect.catchDefect(() => Effect.void),
+        Effect.forkIn(this.#scope, { startImmediately: true }),
+      ),
+    );
+  }
 
   /** Fork: the daily budgets of the agents (item 4.2), made on first use. */
   #forkBudgetState(): ForkBudget {

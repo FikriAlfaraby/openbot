@@ -121,6 +121,8 @@ export interface AgentBrowserHost extends AttentionBrowserHost, BrowserUploadTar
   close(tabId: string): Effect.Effect<void, BrowserOperationError>;
   /** Deleting an agent deletes the cookies and storage of its own browser session. */
   clearAgentSession(agentId: string): Effect.Effect<void, BrowserOperationError>;
+  /** Fork (item 4.3): closes an ended ticket's tabs and deletes its browser session. */
+  clearForkTicketSession?(ticketId: string): Effect.Effect<void, BrowserOperationError>;
   /** `onUserControl` gives the result of a call that reaches a held tab in the tab queue. */
   handleDynamicTool(
     params: DynamicToolCallParams,

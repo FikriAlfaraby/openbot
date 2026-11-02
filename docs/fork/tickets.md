@@ -116,3 +116,13 @@ With no live ticket nothing is sent, so a quiet team costs no tokens. The Watchd
 reads tickets, resumes a stuck ticket with its own worker (`ticket_assign` to the same agent),
 logs findings with `ticket_note`, and tells the Router only what needs its decision. It cannot give a
 ticket to another worker or close one.
+
+## Browser session per ticket (item 4.3)
+
+- A tab that a worker opens from the side thread of a live ticket opens in that ticket's own
+  browser session: two tickets share no cookies, sign-ins or storage, also on one worker.
+- A named browser profile that the owner set for the agent comes first; its tabs stay in it.
+- The session folder is `Partitions/openbot-browser-agent-<hash of the ticket id>`. It is an
+  agent-kind session, so saved tabs come back in it after a restart and no new state field exists.
+- When the ticket ends (done, failed, cancelled), the host closes its tabs and deletes the session's
+  cookies, storage and cache within 5 minutes (the Watchdog tick). A failed delete is tried again.
