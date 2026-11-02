@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type AgentSummary,
   agentAutomationAllowed,
@@ -63,6 +63,8 @@ import {
   renderRoutineHandoff,
 } from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
+import { type PersonaForPrompt, personaForPrompt } from "./persona/persona-file";
+import { snapshotPersona } from "./persona/persona-history";
 import { isProviderTimeout } from "./provider-status";
 import { sessionSettingsIdentity } from "./session-settings";
 import { isArchivedThreadError, isMissingProviderSessionError, providerLabel } from "./thread-items";
@@ -120,6 +122,8 @@ interface InstructionsFileInPrompt {
   found: PromptInstructionsFile | null;
   /** The file that the instructions carry: the CLI does not read it by itself. */
   file: PromptInstructionsFile | null;
+  /** Fork: the persona and global instructions, read once with the file. */
+  persona: PersonaForPrompt;
 }
 
 /**
@@ -983,6 +987,11 @@ export class ThreadLifecycle {
           // to the file adds a new value. Only another file name, or a file with text, adds a value.
           ...(instructionsFile.fileName === "AGENTS.md" ? [] : [["instructions-file", instructionsFile.fileName]]),
           ...(instructionsFile.found?.text ? [["instructions", instructionsFile.found.text]] : []),
+          // Fork: a persona or global text adds a value, so that a change starts a session with it.
+          ...(instructionsFile.persona.persona ? [["persona", instructionsFile.persona.persona.hash]] : []),
+          ...(instructionsFile.persona.globalInstructions
+            ? [["global-instructions", instructionsFile.persona.globalInstructions]]
+            : []),
         ]),
       )
       .digest("hex");
@@ -1144,6 +1153,8 @@ export class ThreadLifecycle {
       httpMcpServers: mcpServers.some((config) => config.transport === "http"),
       instructionsFileName: instructionsFile.fileName,
       instructionsFile: instructionsFile.file,
+      persona: instructionsFile.persona.persona,
+      globalInstructions: instructionsFile.persona.globalInstructions,
     };
     const instructions = developerInstructions(
       agent,
@@ -1180,6 +1191,7 @@ export class ThreadLifecycle {
    * Claude in workspace-only mode reads user settings only, so it gets the text too.
    */
   readonly #instructionsFile = Effect.fn("ThreadLifecycle.instructionsFile")(function* (
+    this: ThreadLifecycle,
     agent: AgentSummary,
     client: AgentClient,
   ) {
@@ -1192,6 +1204,8 @@ export class ThreadLifecycle {
       fileName: file?.fileName ?? "AGENTS.md",
       found: file,
       file: file && !file.readByCli ? file : null,
+      // The OpenBot folder holds `Shared`, so it is the parent of the shared directory.
+      persona: yield* personaForPrompt(agent.workspacePath, dirname(this.#store.sharedRoot), snapshotPersona),
     } satisfies InstructionsFileInPrompt;
   });
 
