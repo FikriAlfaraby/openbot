@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type DoctorPorts, doctorReport, forkDoctor } from "./doctor";
+import { type DoctorPorts, doctorReport, forkDoctor, suggestedForkConfig } from "./doctor";
+import { parseForkConfig } from "./fork-config";
 
 function ports(
   files: Record<string, string>,
@@ -80,5 +81,38 @@ describe("forkDoctor", () => {
     expect(levelOf(findings, "backup")).toEqual(["warn"]);
     expect(levelOf(findings, "global-instructions")).toEqual(["warn"]);
     expect(doctorReport(findings)).toContain("→ ");
+  });
+});
+
+describe("the starting fork-config.yaml (item 5.10)", () => {
+  const agents = [
+    { id: "orchestrator", name: "Telegram Orchestrator" },
+    { id: "coder", name: "Coder\n# role: router" },
+    { id: "bad id", name: "x" },
+  ];
+
+  it("is valid, names the Router and the workers, and keeps names in comments", () => {
+    const text = suggestedForkConfig(agents, "orchestrator");
+    const parsed = parseForkConfig(text);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(Object.fromEntries(parsed.config.roles)).toEqual({ orchestrator: "router", coder: "worker" });
+    expect(parsed.config.gates.get("telegram")).toEqual({ mode: "auto", allow: null });
+    expect(parsed.config.budget).toBeNull();
+    expect(text).not.toContain("bad id");
+  });
+
+  it("asks for the Router when the Orchestrator is unknown", () => {
+    const text = suggestedForkConfig(agents, null);
+    const parsed = parseForkConfig(text);
+    expect(parsed.ok && [...parsed.config.roles.values()]).toEqual(["worker", "worker"]);
+    expect(text).toContain("Give the Telegram Orchestrator role: router.");
+  });
+
+  it("comes with the missing-file finding, indented in the report", () => {
+    const findings = forkDoctor({ ...ports({}), agents: () => agents, routerHint: () => "orchestrator" });
+    expect(findings[0]?.example).toContain("role: router");
+    expect(doctorReport(findings)).toContain("\n        version: 1\n        agents:");
+    expect(forkDoctor(ports({}))[0]?.example).toBeUndefined();
   });
 });

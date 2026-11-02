@@ -3,13 +3,14 @@
 // `GET /v1/fork/doctor`, which runs inside OpenBot, so the server needs no `bun`).
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { type DoctorFinding, doctorReport, forkDoctor } from "./doctor";
+import { type DoctorAgent, type DoctorFinding, doctorReport, forkDoctor } from "./doctor";
 
 export function runForkDoctor(
   openbotRoot: string,
   extra: readonly DoctorFinding[] = [],
+  hints: { agents?: () => DoctorAgent[]; routerHint?: () => string | null } = {},
 ): { findings: DoctorFinding[]; report: string; errors: number } {
   const checked = forkDoctor({
     readText: (path) => {
@@ -30,6 +31,19 @@ export function runForkDoctor(
       spawnSync("sh", ["-c", 'command -v "$1"', "sh", name], { stdio: "ignore", timeout: 5_000 }).status === 0,
     exists: (path) => existsSync(path),
     platform: process.platform,
+    // The running OpenBot knows the agents' names and the Orchestrator; a clone knows the folders.
+    agents:
+      hints.agents ??
+      (() => {
+        try {
+          return readdirSync(join(openbotRoot, "Agents"), { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => ({ id: entry.name, name: entry.name }));
+        } catch {
+          return [];
+        }
+      }),
+    routerHint: hints.routerHint ?? (() => null),
   });
   // Checks that need the running OpenBot, such as the spending of each agent (item 5.6).
   const findings = [...checked, ...extra];

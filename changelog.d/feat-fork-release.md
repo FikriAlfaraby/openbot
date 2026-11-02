@@ -17,3 +17,4 @@
 - Answer `/tiket <number>` with one ticket's question, summary and last steps.
 - Answer `/bantuan` and `/help` in the Router's chat with the commands a person can use.
 - Let a ticket's requester sign off a ticket in review with `/selesai <number>` in the Router's chat.
+- Print a starting `fork-config.yaml` with the server's agent ids when the doctor finds none.

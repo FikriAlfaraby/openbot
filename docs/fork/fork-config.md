@@ -143,3 +143,8 @@ It reads `fork-config.yaml`, the agent folders, each role's `persona.yaml`, `glo
 the T3 Code command, the Telegram gate, the budget and the backup, and prints one line per check
 with a fix for each warning or error. It changes nothing, and exits 1 when a check fails.
 
+With no `fork-config.yaml`, the doctor prints a file to start from with this server's agent ids
+(item 5.10). `openbot doctor` on a server also knows the agents' names and makes the Telegram
+Orchestrator the Router; from a clone, every agent folder starts as a worker. The gate starts in
+`auto` with no allow list, so the bot keeps answering; add your team's Telegram user ids to `allow`.
+

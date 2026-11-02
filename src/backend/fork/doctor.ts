@@ -6,6 +6,10 @@
 //   bun scripts/fork-doctor.ts [<OpenBot folder>]
 //
 // It reads files only and changes nothing. The ports keep it testable without a server.
+//
+// Item 5.10: with no fork-config.yaml, the finding carries a starting file with the server's real
+// agent ids (the folder names, which people do not see in the app) and, on a server, the Telegram
+// Orchestrator as the Router.
 
 import { GLOBAL_INSTRUCTIONS_FILE_NAME, GLOBAL_INSTRUCTIONS_LIMIT } from "../agent/persona/persona-file";
 import { PERSONA_FILE_NAME, parsePersona } from "../agent/persona/persona-schema";
@@ -18,6 +22,13 @@ export interface DoctorFinding {
   check: string;
   detail: string;
   fix?: string;
+  /** A file to start from, printed under the fix. */
+  example?: string;
+}
+
+export interface DoctorAgent {
+  id: string;
+  name: string;
 }
 
 export interface DoctorPorts {
@@ -30,6 +41,39 @@ export interface DoctorPorts {
   /** Whether an absolute path exists, for files outside the OpenBot folder such as the backup. */
   exists(path: string): boolean;
   platform: string;
+  /** The agents of this server, for the starting file (item 5.10). */
+  agents?(): DoctorAgent[];
+  /** The agent that answers Telegram (the Orchestrator), or null when unknown. */
+  routerHint?(): string | null;
+}
+
+const AGENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
+
+/** A starting fork-config.yaml with these agents (item 5.10). Names go in comments only. */
+export function suggestedForkConfig(agents: readonly DoctorAgent[], routerId: string | null): string {
+  const comment = (text: string) => text.replace(/[\r\n]+/gu, " ").slice(0, 80);
+  const lines = ["version: 1", "agents:"];
+  const valid = agents.filter((agent) => AGENT_ID.test(agent.id));
+  const router = valid.find((agent) => agent.id === routerId);
+  if (router)
+    lines.push(`  ${router.id}:   # ${comment(router.name)}: talks with people and routes work`, "    role: router");
+  else lines.push("  # Give the Telegram Orchestrator role: router.");
+  for (const agent of valid) {
+    if (agent.id === router?.id) continue;
+    lines.push(`  ${agent.id}:   # ${comment(agent.name)}`, "    role: worker");
+  }
+  lines.push(
+    "  # Add a Watchdog agent with role: watchdog (docs/fork/agents/README.md).",
+    "chat:",
+    "  maxWords: 100",
+    "gate:",
+    "  telegram:",
+    "    mode: auto",
+    '    # allow: ["123456789"]   # your team\'s Telegram user ids; without it, anyone can give work',
+    "# budget:",
+    "#   dailyUsd: 5",
+  );
+  return lines.join("\n");
 }
 
 const ok = (check: string, detail: string): DoctorFinding => ({ level: "ok", check, detail });
@@ -40,13 +84,17 @@ export function forkDoctor(ports: DoctorPorts): DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   const text = ports.readText(FORK_CONFIG_FILE_NAME);
   if (text === null) {
-    findings.push(
-      warn(
+    const agents = ports.agents?.() ?? [];
+    findings.push({
+      ...warn(
         "fork-config",
         `${FORK_CONFIG_FILE_NAME} is missing: no agent has a role, so the Router limits, the ticket roles and the Watchdog are off.`,
-        "Write it beside Agents and Shared; see docs/fork/fork-config.md.",
+        agents.length
+          ? `Write it beside Agents and Shared, starting from this (check each role); see docs/fork/fork-config.md.`
+          : "Write it beside Agents and Shared; see docs/fork/fork-config.md.",
       ),
-    );
+      ...(agents.length ? { example: suggestedForkConfig(agents, ports.routerHint?.() ?? null) } : {}),
+    });
     return [...findings, ...personaFindings(ports, []), ...globalFindings(ports)];
   }
   const parsed = parseForkConfig(text);
@@ -206,7 +254,9 @@ export function doctorReport(findings: readonly DoctorFinding[]): string {
   return findings
     .map(
       (finding) =>
-        `${mark[finding.level]} ${finding.check}: ${finding.detail}${finding.fix ? `\n      → ${finding.fix}` : ""}`,
+        `${mark[finding.level]} ${finding.check}: ${finding.detail}${finding.fix ? `\n      → ${finding.fix}` : ""}${
+          finding.example ? `\n${finding.example.replace(/^/gmu, "        ")}` : ""
+        }`,
     )
     .join("\n");
 }

@@ -136,6 +136,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - [x] 5.9 `/selesai <number>` sign-off (article §4.2: a person is asked only for decisions and
       sign-offs). A ticket in `review` waited for a Router turn to close; now its requester closes
       it as `done` from the chat (`signOffReply`).
+- [x] 5.10 A starting `fork-config.yaml` in the doctor (product need: the agent ids are folder
+      names that the app does not show, so writing the file was the hardest setup step). With no
+      file, the doctor prints one with the real ids, and on a server the Orchestrator as Router
+      (`suggestedForkConfig`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -202,6 +206,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.9: only the requester in the ticket's mandate signs off, and only from `review`; a ticket
   without a person in its mandate (opened by an agent) is closed by the Router as before. The
   Router hears of the sign-off through the ticket context of its next message, not at once.
+
+- Item 5.10: the starting file has the Telegram gate in `auto` with the allow list commented out
+  and the budget commented out, so a server that copies it keeps answering as before; the owner
+  then adds ids and a budget.
 
 ## Findings
 

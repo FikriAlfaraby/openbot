@@ -234,7 +234,7 @@ import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
 import { chatCommandOf, helpReply, signOffReply, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
-import type { DoctorFinding } from "./fork/doctor";
+import type { DoctorAgent, DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
 import {
@@ -5319,6 +5319,20 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       onHeld: (agentId, spend, limit) => logger.warn(budgetNote(agentId, spend, limit)),
     });
     return this.#forkBudget;
+  }
+
+  /** Fork (item 5.10): the visible agents and the Telegram Orchestrator, for the doctor's starting file. */
+  forkDoctorHints(): { agents: () => DoctorAgent[]; routerHint: () => string | null } {
+    return {
+      agents: () =>
+        this.#store
+          .list()
+          .filter((agent) => agent.hiddenAt === undefined)
+          .map((agent) => ({ id: agent.id, name: agent.name })),
+      routerHint: () =>
+        this.messaging?.store.connections().find((connection) => connection.platform === "telegram")
+          ?.orchestratorAgentId ?? null,
+    };
   }
 
   /** Fork (item 5.6): the 24-hour spending of each agent with a budget, for `openbot doctor`. */
