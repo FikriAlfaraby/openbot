@@ -148,3 +148,8 @@ With no `fork-config.yaml`, the doctor prints a file to start from with this ser
 Orchestrator the Router; from a clone, every agent folder starts as a worker. The gate starts in
 `auto` with no allow list, so the bot keeps answering; add your team's Telegram user ids to `allow`.
 
+Persona checks follow the role (item 5.11): a Router or Watchdog with no `persona.yaml` is fine,
+since its template is written at its next session; a worker with no persona, or with no
+`routing_summary`, gets a warning, because the Router picks a worker by that line in
+`list_agents`.
+

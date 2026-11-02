@@ -140,6 +140,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
       names that the app does not show, so writing the file was the hardest setup step). With no
       file, the doctor prints one with the real ids, and on a server the Orchestrator as Router
       (`suggestedForkConfig`).
+- [x] 5.11 Persona checks by role in the doctor (persona per bot, item P.1: the Router routes by
+      `routing_summary`). A worker without one now gets a warning with an example line; a Router or
+      Watchdog without a persona is ok, since its template comes at its next session (item P.7).
 
 ## Default decisions (taken while the owner was away; review them)
 

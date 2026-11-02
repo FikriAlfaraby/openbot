@@ -13,7 +13,8 @@
 
 import { GLOBAL_INSTRUCTIONS_FILE_NAME, GLOBAL_INSTRUCTIONS_LIMIT } from "../agent/persona/persona-file";
 import { PERSONA_FILE_NAME, parsePersona } from "../agent/persona/persona-schema";
-import { FORK_CONFIG_FILE_NAME, parseForkConfig } from "./fork-config";
+import { FORK_CONFIG_FILE_NAME, type ForkRole, parseForkConfig } from "./fork-config";
+import { ROLE_PERSONA_TEMPLATES } from "./role-templates";
 
 export type DoctorLevel = "ok" | "warn" | "error";
 
@@ -95,7 +96,7 @@ export function forkDoctor(ports: DoctorPorts): DoctorFinding[] {
       ),
       ...(agents.length ? { example: suggestedForkConfig(agents, ports.routerHint?.() ?? null) } : {}),
     });
-    return [...findings, ...personaFindings(ports, []), ...globalFindings(ports)];
+    return [...findings, ...personaFindings(ports, new Map()), ...globalFindings(ports)];
   }
   const parsed = parseForkConfig(text);
   if (!parsed.ok) {
@@ -106,7 +107,7 @@ export function forkDoctor(ports: DoctorPorts): DoctorFinding[] {
         "Fix the field it names; see docs/fork/fork-config.md.",
       ),
     );
-    return [...findings, ...personaFindings(ports, []), ...globalFindings(ports)];
+    return [...findings, ...personaFindings(ports, new Map()), ...globalFindings(ports)];
   }
   const config = parsed.config;
   findings.push(ok("fork-config", `${FORK_CONFIG_FILE_NAME} is valid, with ${config.roles.size} role(s).`));
@@ -204,34 +205,50 @@ export function forkDoctor(ports: DoctorPorts): DoctorFinding[] {
           ),
     );
 
-  return [...findings, ...personaFindings(ports, [...config.roles.keys()]), ...globalFindings(ports)];
+  return [...findings, ...personaFindings(ports, config.roles), ...globalFindings(ports)];
 }
 
-function personaFindings(ports: DoctorPorts, agentIds: readonly string[]): DoctorFinding[] {
+function personaFindings(ports: DoctorPorts, roles: ReadonlyMap<string, ForkRole>): DoctorFinding[] {
   const findings: DoctorFinding[] = [];
-  for (const agentId of agentIds) {
+  for (const [agentId, role] of roles) {
     if (!ports.hasDir(`Agents/${agentId}`)) continue;
     const text = ports.readText(`Agents/${agentId}/${PERSONA_FILE_NAME}`);
     if (text === null) {
+      // The Router and the Watchdog get their role's template at their next session (item P.7).
       findings.push(
-        warn(
-          "persona",
-          `${agentId} has no persona.yaml.`,
-          `Copy a template from docs/fork/agents/ to Agents/${agentId}/persona.yaml.`,
-        ),
+        role in ROLE_PERSONA_TEMPLATES
+          ? ok("persona", `${agentId} has no persona.yaml yet; the ${role} template is written at its next session.`)
+          : warn(
+              "persona",
+              `${agentId} has no persona.yaml.`,
+              `Copy a template from docs/fork/agents/ to Agents/${agentId}/persona.yaml.`,
+            ),
       );
       continue;
     }
     const parsed = parsePersona(text);
-    findings.push(
-      parsed.ok
-        ? ok("persona", `${agentId}: persona.yaml is valid.`)
-        : error(
-            "persona",
-            `${agentId}: persona.yaml is ignored: ${parsed.issue}`,
-            `bun scripts/persona.ts validate Agents/${agentId}/persona.yaml`,
-          ),
-    );
+    if (!parsed.ok) {
+      findings.push(
+        error(
+          "persona",
+          `${agentId}: persona.yaml is ignored: ${parsed.issue}`,
+          `bun scripts/persona.ts validate Agents/${agentId}/persona.yaml`,
+        ),
+      );
+      continue;
+    }
+    // Item 5.11: the Router picks a worker by its routing summary in list_agents.
+    if (role === "worker" && !parsed.persona.routing_summary?.trim()) {
+      findings.push(
+        warn(
+          "persona",
+          `${agentId}: persona.yaml has no routing_summary, so the Router sees only the profile description when it picks a worker.`,
+          "Add one line on what this worker does and when to send it work, such as: routing_summary: Fixes and builds code in T3 Code.",
+        ),
+      );
+      continue;
+    }
+    findings.push(ok("persona", `${agentId}: persona.yaml is valid.`));
   }
   return findings;
 }

@@ -43,7 +43,7 @@ describe("forkDoctor", () => {
       "gate:",
       "  telegram: { mode: auto, allow: ['123'] }",
     ].join("\n");
-    const persona = "version: 1\nrole: Router\n";
+    const persona = "version: 1\nrole: Router\nrouting_summary: Fixes code.\n";
     const findings = forkDoctor(
       ports(
         {
@@ -114,5 +114,30 @@ describe("the starting fork-config.yaml (item 5.10)", () => {
     expect(findings[0]?.example).toContain("role: router");
     expect(doctorReport(findings)).toContain("\n        version: 1\n        agents:");
     expect(forkDoctor(ports({}))[0]?.example).toBeUndefined();
+  });
+});
+
+describe("persona checks by role (item 5.11)", () => {
+  const config = "version: 1\nagents:\n  r: { role: router }\n  w: { role: worker }\n  d: { role: watchdog }\n";
+
+  it("is ok for a Router or Watchdog with no persona yet, a warning for a worker", () => {
+    const findings = forkDoctor(ports({ "fork-config.yaml": config }, ["Agents/r", "Agents/w", "Agents/d"]));
+    const persona = findings.filter((finding) => finding.check === "persona");
+    expect(persona.map((finding) => [finding.level, finding.detail.split(" ")[0]])).toEqual([
+      ["ok", "r"],
+      ["warn", "w"],
+      ["ok", "d"],
+    ]);
+    expect(persona[0]?.detail).toContain("router template is written at its next session");
+  });
+
+  it("warns for a worker persona without a routing summary", () => {
+    const findings = forkDoctor(
+      ports({ "fork-config.yaml": config, "Agents/w/persona.yaml": "version: 1\nrole: Coder\n" }, ["Agents/w"]),
+    );
+    const worker = findings.find((finding) => finding.check === "persona");
+    expect(worker?.level).toBe("warn");
+    expect(worker?.detail).toContain("no routing_summary");
+    expect(worker?.fix).toContain("routing_summary:");
   });
 });
