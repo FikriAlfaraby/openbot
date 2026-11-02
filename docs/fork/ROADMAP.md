@@ -59,7 +59,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       stops, and can resume or close it.
 - [x] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
       user, bot messages as inferred candidates. Tests.
-- [ ] 3.4 Mandate: scope and strength recorded on each ticket, checked by the host before risky
+- [x] 3.4 Mandate: scope and strength recorded on each ticket, checked by the host before risky
       actions and before a ticket resumes.
 
 ## Phase 2b: Persona backend v2
@@ -107,7 +107,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   bytes of always-visible text (tool names in `tool_search`) and about 3.3 KB of searchable catalog.
   Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature. The two
   T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog; `t3_sweep`
-  (item 3.1c) by 18 visible bytes and about 0.3 KB.
+  (item 3.1c) by 18 visible bytes and about 0.3 KB; the mandate's `scope` field (item 3.4) by 172
+  bytes of searchable schema.
 
 ## Findings
 

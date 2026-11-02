@@ -76,3 +76,19 @@ moves the ticket to `blocked` and queues one note for the Router in the ticket's
 it with `ticket_assign` or ends it with `ticket_close`, and tells the person only when the work
 cannot go on. One note per stopped turn; a completed turn needs none, because its answer already
 returns to the Router.
+
+## Mandate (item 3.4)
+
+When `ticket_create` opens a ticket, the host records its mandate (`src/backend/fork/tickets/mandate.ts`),
+never the model, and it cannot change afterwards (a wider scope needs a new ticket):
+
+| Field | Value |
+|---|---|
+| `strength` | `explicit`: the sender is on the gate's allow-list; `open`: the platform has no allow-list; `agent`: no person's message started it |
+| `scope` | the Router's `scope` sentence, or the title |
+| `sender` | platform and sender id |
+| `policyVersion` | a hash of the platform's gate at that time |
+
+Before `ticket_assign` resumes or follows up a ticket, and before `t3_run`, the host checks the
+mandate against the gate now: when the gate is off or the sender left the allow-list, the work is
+refused and the ticket's log says why. Agent mandates and tickets made before item 3.4 hold.

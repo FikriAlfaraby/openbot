@@ -5,6 +5,7 @@ import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ForkRole } from "../fork-config";
+import type { PlatformGate } from "../gate";
 import { TicketStore } from "./ticket-store";
 import {
   handleTicketTool,
@@ -28,9 +29,20 @@ const agents: Record<string, string> = {
   watch: "Watchdog",
 };
 
-function ports(origin = { threadKeys: ["messaging:link-1"], sourceKey: "delivery:d1", source: "messaging" as const }) {
+type Origin = ReturnType<TicketToolPorts["turnOrigin"]>;
+let gate: PlatformGate | null = null;
+
+function ports(
+  origin: Origin = {
+    threadKeys: ["messaging:link-1"],
+    sourceKey: "delivery:d1",
+    source: "messaging",
+    sender: { platform: "telegram", authorId: "111" },
+  },
+) {
   return {
     store,
+    gate: () => gate,
     roleOf: (id) => roles[id] ?? null,
     agent: (id) => (agents[id] ? { id, name: agents[id] } : null),
     turnOrigin: () => origin,
@@ -53,6 +65,7 @@ beforeEach(() => {
   store = new TicketStore({ userDataPath: dir });
   started = [];
   openTasks = new Set();
+  gate = null;
 });
 
 afterEach(() => {
@@ -179,7 +192,7 @@ describe("lists and reads", () => {
       "ticket_create",
       { title: "b", brief: "y" },
       "router",
-      ports({ threadKeys: [], sourceKey: "delivery:d2", source: "messaging" }),
+      ports({ threadKeys: [], sourceKey: "delivery:d2", source: "messaging", sender: null }),
     );
     const count = async (caller: string) => {
       const result = await run("ticket_list", {}, caller);
@@ -201,5 +214,59 @@ describe("workerBrief", () => {
     expect(text).toContain("Do X.");
     expect(text).toContain("Note from the Router: Hurry.");
     expect(text).toContain("Do not talk with people directly");
+  });
+});
+
+describe("the mandate of a ticket", () => {
+  it("records an explicit mandate for a sender on the allow-list, and an open one without a list", async () => {
+    gate = { mode: "auto", allow: new Set(["111"]) };
+    await run("ticket_create", { title: "Fix login", brief: "y", scope: "Only the login flow" }, "router");
+    const explicit = JSON.parse(store.byNumber(1)?.mandateJson ?? "null");
+    expect(explicit).toMatchObject({
+      strength: "explicit",
+      scope: "Only the login flow",
+      sender: { platform: "telegram", authorId: "111" },
+    });
+    gate = null;
+    await run(
+      "ticket_create",
+      { title: "Other", brief: "y" },
+      "router",
+      ports({
+        threadKeys: [],
+        sourceKey: "delivery:d9",
+        source: "messaging",
+        sender: { platform: "telegram", authorId: "222" },
+      }),
+    );
+    expect(JSON.parse(store.byNumber(2)?.mandateJson ?? "null")).toMatchObject({ strength: "open", scope: "Other" });
+  });
+
+  it("refuses to go on when the sender left the allow-list, and notes why", async () => {
+    gate = { mode: "auto", allow: new Set(["111"]) };
+    await run("ticket_create", { title: "Fix login", brief: "y", assignTo: "coder" }, "router");
+    gate = { mode: "auto", allow: new Set(["333"]) };
+    const refused = await run("ticket_assign", { ticket: 1, agentId: "coder", note: "go on" }, "router");
+    expect(refused).toMatchObject({ ok: false, error: expect.stringContaining("no longer on the gate's allow-list") });
+    expect(store.events(store.byNumber(1)?.ticketId ?? "").map((event) => event.note)).toContain(
+      "mandate revoked: the person who asked for this work is no longer on the gate's allow-list",
+    );
+    gate = { mode: "off", allow: null };
+    expect(await run("ticket_assign", { ticket: 1, agentId: "coder" }, "router")).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("gate is off"),
+    });
+  });
+
+  it("keeps an agent mandate valid whatever the gate", async () => {
+    await run(
+      "ticket_create",
+      { title: "Routine", brief: "y" },
+      "router",
+      ports({ threadKeys: [], sourceKey: null, source: "agent", sender: null }),
+    );
+    expect(JSON.parse(store.byNumber(1)?.mandateJson ?? "null")).toMatchObject({ strength: "agent" });
+    gate = { mode: "off", allow: null };
+    expect(await run("ticket_assign", { ticket: 1, agentId: "coder" }, "router")).toMatchObject({ ok: true });
   });
 });

@@ -42,6 +42,7 @@ import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
 import {
   filterDiscoveryForRouter,
+  forkGateOf,
   forkRoleOf,
   forkT3Settings,
   routerMayUse,
@@ -785,6 +786,7 @@ export class OpenBotToolRouter {
           store: ticketStoreFor(dirname(this.#store.automationRoot)),
           roleOf: (agentId) => forkRoleOf(this.#store.sharedRoot, agentId),
           settings: () => forkT3Settings(this.#store.sharedRoot),
+          gate: (platform) => forkGateOf(this.#store.sharedRoot, platform),
           call: runT3,
         },
         params.tool,
@@ -1742,11 +1744,17 @@ export class OpenBotToolRouter {
         const agent = this.#hooks.listAgents().find((item) => item.id === agentId);
         return agent && agent.hiddenAt === undefined ? { id: agent.id, name: agent.name } : null;
       },
-      turnOrigin: () => ({
-        threadKeys: messagingReturn ? [`messaging:${messagingReturn.linkId}`] : [],
-        sourceKey: deliveries[0] ? `delivery:${deliveries[0].delivery.id}` : null,
-        source: messagingReturn ? "messaging" : "agent",
-      }),
+      turnOrigin: () => {
+        const link = messagingReturn ? this.#messaging.store.link(messagingReturn.linkId) : null;
+        const platform = link ? this.#messaging.store.connection(link.connectionId)?.platform : undefined;
+        return {
+          threadKeys: messagingReturn ? [`messaging:${messagingReturn.linkId}`] : [],
+          sourceKey: deliveries[0] ? `delivery:${deliveries[0].delivery.id}` : null,
+          source: messagingReturn ? "messaging" : "agent",
+          sender: messagingReturn && platform ? { platform, authorId: messagingReturn.authorId } : null,
+        };
+      },
+      gate: (platform) => forkGateOf(this.#store.sharedRoot, platform),
       taskOpen: (taskId) => this.#tasks.threadId(taskId) !== null,
       startWorkerTask: (input) =>
         Effect.gen({ self: this }, function* () {

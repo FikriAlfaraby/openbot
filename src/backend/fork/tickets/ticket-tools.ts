@@ -11,6 +11,8 @@
 import { Effect } from "effect";
 import { z } from "zod";
 import type { ForkRole } from "../fork-config";
+import type { PlatformGate } from "../gate";
+import { buildMandate, mandateHolds } from "./mandate";
 import {
   TICKET_LIMITS,
   TICKET_STATES,
@@ -53,6 +55,12 @@ const createShape = {
       "Everything the worker needs and cannot see: the goal, the person's request in full, context, preferences, approved risky actions, and what done looks like.",
     ),
   assignTo: z.string().min(1).max(128).optional().describe("The agent id of the worker; omit to assign later."),
+  scope: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("What the work may cover, in one sentence; the title when omitted. A wider scope needs a new ticket."),
 };
 const assignShape = {
   ticket: TicketRef,
@@ -141,7 +149,15 @@ export interface TicketToolPorts {
   /** The agent, or null when it does not exist or is hidden. */
   agent(agentId: string): { id: string; name: string } | null;
   /** The thread keys and the source key of the caller's current turn: its messaging link, its delivery. */
-  turnOrigin(): { threadKeys: string[]; sourceKey: string | null; source: TicketSource };
+  turnOrigin(): {
+    threadKeys: string[];
+    sourceKey: string | null;
+    source: TicketSource;
+    /** The person whose message started the turn, for the mandate (item 3.4). */
+    sender: { platform: string; authorId: string } | null;
+  };
+  /** The gate of a chat platform now, for the mandate (item 3.4). */
+  gate(platform: string): PlatformGate | null;
   /** Queues the work in a side thread of the worker and returns that thread's task id. */
   startWorkerTask(input: TicketWorkerTaskInput): Effect.Effect<{ taskId: string }, unknown>;
   /** Whether a task is still open, so a follow-up can reuse it. */
@@ -225,6 +241,12 @@ export const handleTicketTool = Effect.fn("TicketTools.handle")(function* (
           threadKeys: origin.threadKeys,
           actor: callerId,
         });
+        if (created)
+          ports.store.setMandate(
+            ticket.ticketId,
+            buildMandate(origin, origin.sender ? ports.gate(origin.sender.platform) : null, input.scope ?? input.title),
+            "host",
+          );
         if (!input.assignTo || !created || ticket.state !== "open")
           return { ok: true, value: { created, ...view(ticket, name) } };
         return yield* assign(ports, ticket, input.assignTo, null, callerId, name);
@@ -311,6 +333,14 @@ const assign = Effect.fn("TicketTools.assign")(function* (
   if (workerRole === "router" || workerRole === "watchdog")
     return { ok: false, error: `${worker.name} has the role ${workerRole} and does not take tickets.` };
   if (ticket.state === "cancelled") return { ok: false, error: `Ticket #${ticket.number} was cancelled.` };
+  const held = mandateHolds(ticket.mandateJson, (platform) => ports.gate(platform));
+  if (!held.ok) {
+    ports.store.note(ticket.ticketId, "host", `mandate revoked: ${held.reason}`);
+    return {
+      ok: false,
+      error: `Ticket #${ticket.number} cannot go on: ${held.reason}. Close it with ticket_close (cancelled), and open a new ticket if an allowed person asks again.`,
+    };
+  }
   // A follow-up to the same worker reuses its open side thread, so the worker keeps its context.
   const sameWorker = ticket.assigneeAgentId === workerId && ticket.taskId !== null && ports.taskOpen(ticket.taskId);
   const reusedTask = sameWorker ? ticket.taskId : null;

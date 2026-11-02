@@ -207,3 +207,32 @@ describe("t3_sweep and the Watchdog", () => {
     expect(t3ThreadState({ nothing: true })).toBeNull();
   });
 });
+
+describe("t3_run and the mandate", () => {
+  it("refuses work when the person who asked left the allow-list", async () => {
+    const ticket = store.byNumber(1);
+    store.setMandate(
+      ticket?.ticketId ?? "",
+      {
+        version: 1,
+        strength: "explicit",
+        scope: "x",
+        sender: { platform: "telegram", authorId: "111" },
+        policyVersion: "p",
+        grantedAt: "t",
+      },
+      "host",
+    );
+    next = json({ threadId: "t", runId: "r", status: "completed", reply: "", error: null });
+    const result = await Effect.runPromise(
+      handleT3Tool(
+        { ...ports(), gate: () => ({ mode: "auto", allow: new Set(["999"]) }) },
+        "t3_run",
+        { ticket: 1, message: "go" },
+        "coder",
+      ),
+    );
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("allow-list") });
+    expect(calls).toHaveLength(0);
+  });
+});

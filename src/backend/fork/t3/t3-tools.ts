@@ -8,6 +8,8 @@ import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { z } from "zod";
 import type { ForkRole, ForkT3Settings } from "../fork-config";
+import type { PlatformGate } from "../gate";
+import { mandateHolds } from "../tickets/mandate";
 import { type Ticket, TicketError, type TicketStore } from "../tickets/ticket-store";
 import {
   DEFAULT_T3_SETTINGS,
@@ -118,6 +120,8 @@ export interface T3ToolPorts {
   store: TicketStore;
   roleOf(agentId: string): ForkRole | null;
   settings(): ForkT3Settings | null;
+  /** The gate of a chat platform now, to check the ticket's mandate before work (item 3.4). */
+  gate?(platform: string): PlatformGate | null;
   call(settings: T3Settings, args: readonly string[]): Effect.Effect<T3CallResult, Error>;
 }
 
@@ -205,6 +209,9 @@ export const handleT3Tool = Effect.fn("T3Tools.handle")(function* (
       return { ok: true, value: parseT3Json(result.stdout) ?? { output: result.stdout.slice(0, 8_000) } };
     }
     const input = schemas.t3_run.parse(args);
+    const held = mandateHolds(ticket.mandateJson, (platform) => ports.gate?.(platform) ?? null);
+    if (!held.ok)
+      return { ok: false, error: `Ticket #${ticket.number} cannot go on: ${held.reason}. Stop and tell the Router.` };
     if (ticket.state === "cancelled")
       return { ok: false, error: `Ticket #${ticket.number} was cancelled. Stop the work.` };
     const callArgs = ticket.t3ThreadId
