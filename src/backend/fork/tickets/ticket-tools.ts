@@ -22,6 +22,7 @@ import {
   type TicketState,
   type TicketStore,
 } from "./ticket-store";
+import { MAX_WATCHDOG_RETRIES, watchdogRetries } from "./watchdog";
 
 export const TICKET_TOOL_NAMES = [
   "ticket_create",
@@ -269,6 +270,16 @@ export const handleTicketTool = Effect.fn("TicketTools.handle")(function* (
         const watchdogResume = role === "watchdog" && ticket.assigneeAgentId === input.agentId;
         const refused = watchdogResume ? null : routerOnly();
         if (refused) return { ok: false, error: refused };
+        // Fork (item 5.5): the Watchdog resumes a failed ticket a few times at most; then the Router decides.
+        if (
+          role === "watchdog" &&
+          ticket.state === "failed" &&
+          watchdogRetries(ports.store, ticket.ticketId, (id) => ports.roleOf(id) === "watchdog") >= MAX_WATCHDOG_RETRIES
+        )
+          return {
+            ok: false,
+            error: `Ticket #${ticket.number} was resumed ${MAX_WATCHDOG_RETRIES} times after a failure. Tell the Router with openbot.send_message; it decides whether to try again.`,
+          };
         return yield* assign(ports, ticket, input.agentId, input.note ?? null, callerId, name);
       }
       case "ticket_note": {

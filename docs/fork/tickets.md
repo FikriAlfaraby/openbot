@@ -126,3 +126,13 @@ ticket to another worker or close one.
   agent-kind session, so saved tabs come back in it after a restart and no new state field exists.
 - When the ticket ends (done, failed, cancelled), the host closes its tabs and deletes the session's
   cookies, storage and cache within 5 minutes (the Watchdog tick). A failed delete is tried again.
+
+## Failed tickets and the Watchdog (item 5.5)
+
+- A ticket that failed in the last 24 hours is in the Watchdog's scheduled check as `failed_recent`,
+  with the worker's last summary, also when no ticket is live.
+- The Watchdog judges the cause. A transient one (a provider or API error, a timeout, the network,
+  a T3 run that stopped) gets the ticket back to its own worker with `ticket_assign`; a real failure
+  gets a `ticket_note` and a message to the Router.
+- A note or a resume after the failure ends the flag. The Watchdog may resume a failed ticket at
+  most 2 times; the next try is refused and the Router decides.

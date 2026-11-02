@@ -119,6 +119,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - [x] 5.4 `openbot doctor` on an installed server (follow-up of 5.3: the server has no `bun`). The
       control socket answers `GET /v1/fork/doctor` from inside OpenBot (`src/main/server-mode.ts`,
       `src/backend/fork/doctor-node.ts`, `scripts/hosting/openbot`).
+- [x] 5.5 The Watchdog checks recent failures again (article §6: transient external failures are
+      rechecked until resolved). It used to see live tickets only, so a T3 run that failed on an API
+      error stayed failed; now it sees failures of the last 24 hours and may resume each at most
+      twice (`src/backend/fork/tickets/watchdog.ts`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -170,6 +174,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.3: the doctor warns (does not fail) for no gate, no budget, no Watchdog and no backup:
   they are advice for a team server, not errors. An invalid config, a missing agent folder and an
   invalid persona fail it.
+
+- Item 5.5: the cap of 2 counts every resume by the Watchdog on that ticket, also resumes of a stuck
+  ticket, so a ticket cannot cycle between failed and working on the Watchdog alone. Fixed numbers:
+  24 hours, 2 resumes.
 
 ## Findings
 

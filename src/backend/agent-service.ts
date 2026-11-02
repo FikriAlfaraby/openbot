@@ -5242,8 +5242,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       if (!watchdogId || this.#mailbox.nextQueued(watchdogId)) return;
       const now = Date.now();
       if (!watchdogDue(this.#watchdogLastWake, everyMinutes, now)) return;
-      const { live, findings } = watchdogFindings(ticketStoreFor(dirname(this.#store.automationRoot)), staleMinutes);
-      if (live === 0) return;
+      const watchdogs = new Set(agentIds);
+      const { live, findings } = watchdogFindings(
+        ticketStoreFor(dirname(this.#store.automationRoot)),
+        staleMinutes,
+        undefined,
+        (id) => watchdogs.has(id),
+      );
+      // Fork (item 5.5): a recent failure wakes the Watchdog too, also with no live ticket.
+      if (live === 0 && findings.length === 0) return;
       this.#watchdogLastWake = now;
       Effect.runFork(
         Effect.gen({ self: this }, function* () {

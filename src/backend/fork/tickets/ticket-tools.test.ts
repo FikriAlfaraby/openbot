@@ -292,3 +292,21 @@ describe("the Watchdog's ticket tools (item 4.1)", () => {
     expect(await run("ticket_close", { ticket: 1, state: "done", note: "x" }, "watch")).toMatchObject({ ok: false });
   });
 });
+
+describe("the Watchdog and failed tickets (item 5.5)", () => {
+  it("resumes a failed ticket at most twice, then leaves it to the Router", async () => {
+    await run("ticket_create", { title: "Deploy", brief: "y", assignTo: "coder" }, "router");
+    const ticketId = store.byNumber(1)?.ticketId ?? "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      store.transition(ticketId, "failed", { actor: "coder", summary: "API error 529" });
+      expect(await run("ticket_assign", { ticket: 1, agentId: "coder", note: "Try again." }, "watch")).toMatchObject({
+        ok: true,
+      });
+    }
+    store.transition(ticketId, "failed", { actor: "coder", summary: "API error 529" });
+    const refused = await run("ticket_assign", { ticket: 1, agentId: "coder" }, "watch");
+    expect(refused).toMatchObject({ ok: false });
+    expect(JSON.stringify(refused)).toContain("Tell the Router");
+    expect(await run("ticket_assign", { ticket: 1, agentId: "coder" }, "router")).toMatchObject({ ok: true });
+  });
+});

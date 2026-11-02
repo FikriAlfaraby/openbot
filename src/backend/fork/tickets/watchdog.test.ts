@@ -65,6 +65,56 @@ describe("watchdogFindings", () => {
   });
 });
 
+describe("failed tickets (item 5.5)", () => {
+  const isWatchdog = (id: string) => id === "watch";
+
+  it("flags a recent failure until the Watchdog acted on it", () => {
+    const failed = ticket("deploy", "working");
+    store.transition(failed.ticketId, "failed", { actor: "coder", summary: "API error 529" });
+    let result = watchdogFindings(store, 60, now, isWatchdog);
+    expect(result.live).toBe(0);
+    expect(result.findings).toMatchObject([
+      { title: "deploy", flag: "failed_recent", watchdogRetries: 0, summary: "API error 529" },
+    ]);
+    clock += 60_000;
+    store.note(failed.ticketId, "watch", "Not transient: the tests fail.");
+    result = watchdogFindings(store, 60, now, isWatchdog);
+    expect(result.findings).toEqual([]);
+  });
+
+  it("drops a failure after a day or after two resumes", () => {
+    const old = ticket("old", "working");
+    store.transition(old.ticketId, "failed", { actor: "coder" });
+    clock += 25 * 60 * 60_000;
+    expect(watchdogFindings(store, 60, now, isWatchdog).findings).toEqual([]);
+    const retried = ticket("retried", "working");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      store.transition(retried.ticketId, "failed", { actor: "coder" });
+      store.assign(retried.ticketId, "coder", "task-retried", "watch");
+    }
+    clock += 60_000;
+    store.transition(retried.ticketId, "failed", { actor: "coder" });
+    expect(watchdogFindings(store, 60, now, isWatchdog).findings).toEqual([]);
+  });
+
+  it("asks the Watchdog to judge whether a failure is transient", () => {
+    const text = watchdogMessage(0, [
+      {
+        ticket: 1,
+        title: "x",
+        state: "failed",
+        assignee: "coder",
+        t3ThreadId: null,
+        minutesSinceUpdate: 3,
+        flag: "failed_recent",
+        watchdogRetries: 0,
+      },
+    ]);
+    expect(text).toContain("looks transient");
+    expect(text).toContain("at most 2 times");
+  });
+});
+
 describe("watchdogMessage and watchdogDue", () => {
   it("names the tools and stays quiet when all is on track", () => {
     const text = watchdogMessage(2, []);
