@@ -112,6 +112,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - [x] 5.2 `/tiket` chat command on the fast path (article §3: code decides what needs no model). A
       Telegram team asks "how far is my work?" often; the host now answers from the ticket store
       with no Router turn and no tokens (`src/backend/fork/chat-commands.ts`).
+- [x] 5.3 Setup check `bun scripts/fork-doctor.ts` (product need: an owner runs the server for a
+      non-IT team; a bad `fork-config.yaml` edit or a missing persona showed only as a bot that
+      misbehaves). Checks roles, folders, personas, T3, gate, budget and backup, with a fix each
+      (`src/backend/fork/doctor.ts`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -159,6 +163,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.2: the command replies in Indonesian by default (`chat.commandLanguage: en` for English),
   because the host has no model to follow the sender's language. Only the Router's conversation
   has the command.
+
+- Item 5.3: the doctor warns (does not fail) for no gate, no budget, no Watchdog and no backup:
+  they are advice for a team server, not errors. An invalid config, a missing agent folder and an
+  invalid persona fail it.
 
 ## Findings
 
@@ -222,3 +230,5 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.1: the Telegram, Slack and Discord drivers already upload answer files; the spill rides
   on that path, after the cut post. A platform that refuses the file shows the usual "files
   skipped" note.
+- Item 5.3: the doctor runs with `bun` from a clone of the repo; the installed server
+  (`/opt/OpenBot`) has no `bun`. A later item can ship it as an `openbot doctor` subcommand.

@@ -114,3 +114,14 @@ that conversation with their state, worker and open question, then the ones that
 24 hours. No Router turn runs, so it costs no tokens and answers also while the Router works. In any
 other agent's conversation the message goes to the agent as before.
 
+## Check the setup (item 5.3)
+
+```sh
+bun scripts/fork-doctor.ts                     # /var/lib/openbot/OpenBot when it exists, else ~/OpenBot
+bun scripts/fork-doctor.ts /path/to/OpenBot
+```
+
+It reads `fork-config.yaml`, the agent folders, each role's `persona.yaml`, `global-instructions.md`,
+the T3 Code command, the Telegram gate, the budget and the backup, and prints one line per check
+with a fix for each warning or error. It changes nothing, and exits 1 when a check fails.
+

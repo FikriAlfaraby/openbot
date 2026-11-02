@@ -10,3 +10,4 @@
   that refuses an unencrypted upload to a bucket.
 - Send the full text of a cut Router chat answer as `full-answer.md` in the same conversation.
 - Answer `/tiket` in the Router's chat with the conversation's tickets, without a Router turn.
+- Add `bun scripts/fork-doctor.ts`, a read-only check of the fork setup with a fix for each issue.

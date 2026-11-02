@@ -1,0 +1,212 @@
+// Fork module (super-agent, roadmap item 5.3). A check of the whole fork setup on one server, for the
+// owner who runs OpenBot on a VPS for a team: roles, personas, global instructions, T3 Code, the
+// gate, budgets and the backup. Each finding says what is wrong and how to fix it, so a bad edit is
+// found before a person on Telegram finds it.
+//
+//   bun scripts/fork-doctor.ts [<OpenBot folder>]
+//
+// It reads files only and changes nothing. The ports keep it testable without a server.
+
+import { GLOBAL_INSTRUCTIONS_FILE_NAME, GLOBAL_INSTRUCTIONS_LIMIT } from "../agent/persona/persona-file";
+import { PERSONA_FILE_NAME, parsePersona } from "../agent/persona/persona-schema";
+import { FORK_CONFIG_FILE_NAME, parseForkConfig } from "./fork-config";
+
+export type DoctorLevel = "ok" | "warn" | "error";
+
+export interface DoctorFinding {
+  level: DoctorLevel;
+  check: string;
+  detail: string;
+  fix?: string;
+}
+
+export interface DoctorPorts {
+  /** The text of a file under the OpenBot folder, or null when it is missing. */
+  readText(relativePath: string): string | null;
+  /** Whether a folder exists under the OpenBot folder. */
+  hasDir(relativePath: string): boolean;
+  /** Whether a command is on PATH. */
+  hasCommand(name: string): boolean;
+  /** Whether an absolute path exists, for files outside the OpenBot folder such as the backup. */
+  exists(path: string): boolean;
+  platform: string;
+}
+
+const ok = (check: string, detail: string): DoctorFinding => ({ level: "ok", check, detail });
+const warn = (check: string, detail: string, fix: string): DoctorFinding => ({ level: "warn", check, detail, fix });
+const error = (check: string, detail: string, fix: string): DoctorFinding => ({ level: "error", check, detail, fix });
+
+export function forkDoctor(ports: DoctorPorts): DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  const text = ports.readText(FORK_CONFIG_FILE_NAME);
+  if (text === null) {
+    findings.push(
+      warn(
+        "fork-config",
+        `${FORK_CONFIG_FILE_NAME} is missing: no agent has a role, so the Router limits, the ticket roles and the Watchdog are off.`,
+        "Write it beside Agents and Shared; see docs/fork/fork-config.md.",
+      ),
+    );
+    return [...findings, ...personaFindings(ports, []), ...globalFindings(ports)];
+  }
+  const parsed = parseForkConfig(text);
+  if (!parsed.ok) {
+    findings.push(
+      error(
+        "fork-config",
+        `${FORK_CONFIG_FILE_NAME} is not valid: ${parsed.issue} OpenBot keeps the last valid version of this process; after a restart it has none.`,
+        "Fix the field it names; see docs/fork/fork-config.md.",
+      ),
+    );
+    return [...findings, ...personaFindings(ports, []), ...globalFindings(ports)];
+  }
+  const config = parsed.config;
+  findings.push(ok("fork-config", `${FORK_CONFIG_FILE_NAME} is valid, with ${config.roles.size} role(s).`));
+
+  const agentIds = new Set([...config.roles.keys(), ...config.agentBudgets.keys()]);
+  for (const agentId of agentIds)
+    if (!ports.hasDir(`Agents/${agentId}`))
+      findings.push(
+        error(
+          "agents",
+          `fork-config.yaml names the agent ${agentId}, but Agents/${agentId} does not exist.`,
+          "Use the agent's id (the name of its folder in Agents), not its display name.",
+        ),
+      );
+
+  const byRole = (role: string) => [...config.roles].filter(([, value]) => value === role).map(([id]) => id);
+  const routers = byRole("router");
+  const workers = byRole("worker");
+  findings.push(
+    routers.length
+      ? ok("router", `The Router is ${routers[0]}.`)
+      : warn("router", "No agent has the role router.", "Give the Telegram Orchestrator `role: router`."),
+  );
+  findings.push(
+    workers.length
+      ? ok("workers", `Workers: ${workers.join(", ")}.`)
+      : warn(
+          "workers",
+          "No agent has the role worker, so the Router has nobody to give a ticket to.",
+          "Give the Coder or Researcher `role: worker`.",
+        ),
+  );
+  findings.push(
+    byRole("watchdog").length
+      ? ok("watchdog", `The Watchdog is ${byRole("watchdog")[0]}.`)
+      : warn(
+          "watchdog",
+          "No agent has the role watchdog: stuck tickets are not checked.",
+          "Add a Watchdog agent; see docs/fork/agents/README.md.",
+        ),
+  );
+
+  const t3Command = config.t3?.command?.[0] ?? "t3";
+  if (config.t3 || workers.length) {
+    findings.push(
+      ports.hasCommand(t3Command)
+        ? ok("t3", `The T3 Code command ${t3Command} is on PATH.`)
+        : warn(
+            "t3",
+            `The T3 Code command ${t3Command} is not on PATH, so t3_run fails for coding tickets.`,
+            "Install T3 Code for the service user, or set t3.command; see docs/fork/t3.md.",
+          ),
+    );
+  }
+
+  const telegram = config.gates.get("telegram");
+  if (!telegram || telegram.mode === "off")
+    findings.push(
+      warn(
+        "gate",
+        telegram
+          ? "The Telegram gate is off: every message is dropped."
+          : "No Telegram gate: anyone who can message the bot can give it work.",
+        "Set gate.telegram with mode auto and an allow list of Telegram user ids.",
+      ),
+    );
+  else if (!telegram.allow)
+    findings.push(
+      warn(
+        "gate",
+        `The Telegram gate is ${telegram.mode} with no allow list.`,
+        "Add gate.telegram.allow with your team's Telegram user ids.",
+      ),
+    );
+  else findings.push(ok("gate", `The Telegram gate is ${telegram.mode} for ${telegram.allow.size} user(s).`));
+
+  findings.push(
+    config.budget || config.agentBudgets.size
+      ? ok("budget", "A daily budget is set.")
+      : warn(
+          "budget",
+          "No daily budget: an agent in a loop can spend without a limit.",
+          "Set budget.dailyUsd or budget.dailyTokens; see docs/fork/fork-config.md.",
+        ),
+  );
+
+  if (ports.platform === "linux")
+    findings.push(
+      ports.exists("/usr/local/bin/openbot-backup")
+        ? ok("backup", "The daily backup is installed.")
+        : warn(
+            "backup",
+            "The daily backup is not installed.",
+            "sudo bash scripts/fork/openbot-backup install; see docs/fork/storage.md.",
+          ),
+    );
+
+  return [...findings, ...personaFindings(ports, [...config.roles.keys()]), ...globalFindings(ports)];
+}
+
+function personaFindings(ports: DoctorPorts, agentIds: readonly string[]): DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const agentId of agentIds) {
+    if (!ports.hasDir(`Agents/${agentId}`)) continue;
+    const text = ports.readText(`Agents/${agentId}/${PERSONA_FILE_NAME}`);
+    if (text === null) {
+      findings.push(
+        warn(
+          "persona",
+          `${agentId} has no persona.yaml.`,
+          `Copy a template from docs/fork/agents/ to Agents/${agentId}/persona.yaml.`,
+        ),
+      );
+      continue;
+    }
+    const parsed = parsePersona(text);
+    findings.push(
+      parsed.ok
+        ? ok("persona", `${agentId}: persona.yaml is valid.`)
+        : error(
+            "persona",
+            `${agentId}: persona.yaml is ignored: ${parsed.issue}`,
+            `bun scripts/persona.ts validate Agents/${agentId}/persona.yaml`,
+          ),
+    );
+  }
+  return findings;
+}
+
+function globalFindings(ports: DoctorPorts): DoctorFinding[] {
+  const text = ports.readText(GLOBAL_INSTRUCTIONS_FILE_NAME);
+  if (text === null || text.trim().length <= GLOBAL_INSTRUCTIONS_LIMIT) return [];
+  return [
+    warn(
+      "global-instructions",
+      `${GLOBAL_INSTRUCTIONS_FILE_NAME} has ${text.trim().length} characters; only ${GLOBAL_INSTRUCTIONS_LIMIT} are used.`,
+      "Shorten it, or move agent-specific parts to that agent's persona.yaml.",
+    ),
+  ];
+}
+
+/** The findings as text lines for a terminal. */
+export function doctorReport(findings: readonly DoctorFinding[]): string {
+  const mark: Record<DoctorLevel, string> = { ok: "ok   ", warn: "warn ", error: "ERROR" };
+  return findings
+    .map(
+      (finding) =>
+        `${mark[finding.level]} ${finding.check}: ${finding.detail}${finding.fix ? `\n      → ${finding.fix}` : ""}`,
+    )
+    .join("\n");
+}
