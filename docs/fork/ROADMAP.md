@@ -90,7 +90,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 - [x] 4.1 Watchdog agent template and a routine every N minutes, with read-only ticket tools and
       resume/close; it judges progress, not only liveness.
-- [ ] 4.2 Token budget per agent and a loop guard for repeated failing tool calls.
+- [x] 4.2 Token budget per agent and a loop guard for repeated failing tool calls
+      (`src/backend/fork/budget.ts`, `loop-guard.ts`, `docs/fork/fork-config.md`).
 - [ ] 4.3 Browser session per ticket (`openbot-browser-ticket-<id>`), removed when the ticket ends.
 - [ ] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
       one Router turn together; today `startDelivery` runs each external message alone.
@@ -119,6 +120,11 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   the provider, and a silent switch would differ from the model that the app shows. Recommended:
   Router and Watchdog on a light model (Claude Haiku or Sonnet), workers on the strongest
   (`docs/fork/agents/README.md`). Set them in each agent's settings.
+
+- Item 4.2: the daily budget is a rolling 24 hours, counts tokens without cached input reads, holds
+  the queue (nothing fails), and lets the owner's own app message through. No budget is set by
+  default; set `budget` in `fork-config.yaml`. The loop guard refuses after 3 identical failures in
+  10 minutes; these numbers are fixed, not settings.
 
 ## Findings
 
@@ -167,3 +173,6 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   `AgentTemplateSnapshot` that the server validates; a persona field would need that service. A
   fork-only path would be to publish the persona as an embedded skill and turn it back into
   `persona.yaml` on install. Not done: for a personal fork, an instance transfer carries it.
+- Item 4.2: OpenBot sees only its own tools, so the loop guard cannot see a provider's `Bash` loop;
+  the budget and the Watchdog cover those. A budget is checked when a turn starts, so one long turn
+  can go past it.

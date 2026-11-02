@@ -231,9 +231,10 @@ import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
+import { budgetNote, ForkBudget } from "./fork/budget";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
-import { forkChatMaxWords, forkGateOf, forkRoleOf, forkWatchdog } from "./fork/router-policy";
+import { forkBudgetOf, forkChatMaxWords, forkGateOf, forkRoleOf, forkWatchdog } from "./fork/router-policy";
 import { writeStarterPersona } from "./fork/starter-persona";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
@@ -1329,6 +1330,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         turnEnded: (turnId) => this.#turn.hasEnded(turnId),
         turnRestarting: (turnId) => this.#turn.forgetEnded(turnId),
         startRequestedNewChat: (agentId) => this.#startRequestedNewChat(agentId),
+        forkBudgetHolds: (agentId) => this.#forkBudgetHolds(agentId),
         dropRequestedNewChat: (agentId) => {
           if (this.#requestedNewChats.delete(agentId))
             logger.info(`Agent ${agentId} dropped its new chat request: a turn in its chat started first.`);
@@ -5182,6 +5184,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * stuck (item 4.1). Skips while an earlier wake waits in its queue. A failure skips this check.
    */
   #watchdogTick(): void {
+    // Fork (item 4.2): an agent whose budget no longer holds it starts its queue again.
+    try {
+      for (const agentId of this.#forkBudgetState().released()) this.#drain.scheduleDrain(agentId);
+    } catch {
+      // The next tick reads the budgets again.
+    }
     try {
       const { agentIds, everyMinutes, staleMinutes } = forkWatchdog(this.#store.sharedRoot);
       const visible = new Set(
@@ -5220,6 +5228,27 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
     } catch {
       // The next tick tries again.
+    }
+  }
+
+  #forkBudget: ForkBudget | null = null;
+
+  /** Fork: the daily budgets of the agents (item 4.2), made on first use. */
+  #forkBudgetState(): ForkBudget {
+    this.#forkBudget ??= new ForkBudget({
+      read: (agentId, since) => this.#store.database.usage.readSpendSince(agentId, since),
+      limitOf: (agentId) => forkBudgetOf(this.#store.sharedRoot, agentId),
+      onHeld: (agentId, spend, limit) => logger.warn(budgetNote(agentId, spend, limit)),
+    });
+    return this.#forkBudget;
+  }
+
+  /** Fork: whether an agent's daily budget holds its queue. A failed read holds nothing. */
+  #forkBudgetHolds(agentId: string): boolean {
+    try {
+      return this.#forkBudgetState().holds(agentId);
+    } catch {
+      return false;
     }
   }
 

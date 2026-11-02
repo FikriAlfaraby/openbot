@@ -27,7 +27,20 @@ export type ForkRole = (typeof FORK_ROLES)[number];
 /** An OpenBot agent id: the name of its folder in `Agents`. */
 const AgentId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u));
 
-const AgentEntry = Schema.Struct({ role: Schema.Literals(FORK_ROLES) });
+/** A daily budget (item 4.2): the most tokens and estimated dollars in 24 hours. */
+const DailyTokens = Schema.Int.check(Schema.isBetween({ minimum: 1_000, maximum: 1_000_000_000 }));
+const DailyUsd = Schema.Number.check(Schema.isBetween({ minimum: 0.01, maximum: 100_000 }));
+
+const AgentEntry = Schema.Struct({
+  role: Schema.optionalKey(Schema.Literals(FORK_ROLES)),
+  dailyTokens: Schema.optionalKey(DailyTokens),
+  dailyUsd: Schema.optionalKey(DailyUsd),
+});
+
+const BudgetSettings = Schema.Struct({
+  dailyTokens: Schema.optionalKey(DailyTokens),
+  dailyUsd: Schema.optionalKey(DailyUsd),
+});
 
 const ChatSettings = Schema.Struct({
   /** The most words of a Router reply in a chat channel (item 2.7). */
@@ -70,6 +83,7 @@ const WatchdogSettings = Schema.Struct({
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   watchdog: Schema.optionalKey(WatchdogSettings),
+  budget: Schema.optionalKey(BudgetSettings),
   gate: Schema.optionalKey(
     Schema.Struct({
       telegram: Schema.optionalKey(PlatformGateEntry),
@@ -100,6 +114,10 @@ export interface ForkConfig {
   gates: ReadonlyMap<string, PlatformGate>;
   /** The Watchdog's schedule; null for the defaults (item 4.1). */
   watchdog: { everyMinutes?: number; staleMinutes?: number } | null;
+  /** The budget of every agent without its own (item 4.2); null for none. */
+  budget: { dailyTokens?: number; dailyUsd?: number } | null;
+  /** The budgets that the file sets for one agent, by agent id. */
+  agentBudgets: ReadonlyMap<string, { dailyTokens?: number; dailyUsd?: number }>;
 }
 
 export const EMPTY_FORK_CONFIG: ForkConfig = {
@@ -109,6 +127,8 @@ export const EMPTY_FORK_CONFIG: ForkConfig = {
   mcpAgents: new Map(),
   gates: new Map(),
   watchdog: null,
+  budget: null,
+  agentBudgets: new Map(),
 };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
@@ -128,7 +148,15 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
   const decoded = decodeDocument(parsed);
   if (Result.isFailure(decoded)) return { ok: false, issue: decoded.failure.message.replace(/\s+/gu, " ").trim() };
   const roles = new Map<string, ForkRole>();
-  for (const [agentId, entry] of Object.entries(decoded.success.agents ?? {})) roles.set(agentId, entry.role);
+  const agentBudgets = new Map<string, { dailyTokens?: number; dailyUsd?: number }>();
+  for (const [agentId, entry] of Object.entries(decoded.success.agents ?? {})) {
+    if (entry.role) roles.set(agentId, entry.role);
+    if (entry.dailyTokens !== undefined || entry.dailyUsd !== undefined)
+      agentBudgets.set(agentId, {
+        ...(entry.dailyTokens !== undefined ? { dailyTokens: entry.dailyTokens } : {}),
+        ...(entry.dailyUsd !== undefined ? { dailyUsd: entry.dailyUsd } : {}),
+      });
+  }
   const routers = [...roles.values()].filter((role) => role === "router").length;
   if (routers > 1) return { ok: false, issue: "Only one agent can have the role router." };
   return {
@@ -141,6 +169,8 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
         Object.entries(decoded.success.mcp ?? {}).map(([name, access]) => [name, new Set(access.agents)]),
       ),
       watchdog: decoded.success.watchdog ?? null,
+      budget: decoded.success.budget ?? null,
+      agentBudgets,
       gates: new Map(
         Object.entries(decoded.success.gate ?? {}).map(([platform, entry]) => [
           platform,

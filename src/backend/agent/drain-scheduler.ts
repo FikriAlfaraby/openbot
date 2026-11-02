@@ -84,6 +84,8 @@ export interface DrainHooks {
   startRequestedNewChat(agentId: string): Effect.Effect<void>;
   /** Drops that request: a turn in the agent's own chat starts first, so the agent's notes do not cover it. */
   dropRequestedNewChat(agentId: string): void;
+  /** Fork (item 4.2): whether the agent's daily budget holds its queue. */
+  forkBudgetHolds?(agentId: string): boolean;
 }
 
 /** The tasks of the agents, as the drain reads them. */
@@ -336,6 +338,12 @@ export class DrainScheduler {
     if (this.#compactionHolds(lane)) return "compaction";
     if (!this.#routines.mayDrain(agentId)) return "routine";
     if (!this.#usageLimits.mayDrain(agentId) && !this.#usageLimits.mayTry(agentId)) return "usage-limit";
+    // Fork (item 4.2): a spent daily budget holds the queue, except the owner's own message in the app.
+    if (
+      this.#hooks.forkBudgetHolds?.(agentId) &&
+      !this.#ownerMessage(this.#mailbox.nextQueued(agentId, taskId)?.delivery)
+    )
+      return "fork-budget";
     return null;
   }
 
@@ -1128,6 +1136,11 @@ export class DrainScheduler {
    * external conversation still start and fail, so that their channel or their sender hears of it and
    * the work does not hold a channel assignment.
    */
+  /** Fork (item 4.2): a message that the owner wrote in the app, not one from a channel or a chat platform. */
+  #ownerMessage(delivery: DeliveryContext["delivery"] | undefined): boolean {
+    return delivery?.sender.kind === "user" && this.#waitsForSignIn(delivery);
+  }
+
   #waitsForSignIn(delivery: DeliveryContext["delivery"] | undefined): boolean {
     if (!delivery) return true;
     return !(this.#channels?.store.assignmentForDelivery(delivery.id) || this.#messaging?.ownsDelivery(delivery.id));

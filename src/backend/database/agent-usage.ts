@@ -270,6 +270,29 @@ export class AgentUsage {
     return { tokens, costUsd };
   }
 
+  /**
+   * Fork (roadmap item 4.2): what one agent spent since `since`, for its daily budget. The tokens
+   * leave out cached input reads, which cost a tenth of new input and would fill any budget alone.
+   * The cost adds the records that have one.
+   */
+  readSpendSince(agentId: string, since: string): { tokens: number; costUsd: number } {
+    const rows = databaseRows(
+      this.#core.connection
+        .prepare(
+          "SELECT tokens_json, estimated_cost_usd FROM agent_usage_records WHERE agent_id = ? AND occurred_at >= ?",
+        )
+        .all(agentId, since),
+    );
+    let tokens = 0;
+    let costUsd = 0;
+    for (const row of rows) {
+      const counts = decodeUsageTokens(JSON.parse(requiredStringColumn(row, "tokens_json")));
+      tokens += (counts.uncachedInput ?? 0) + (counts.cacheCreation ?? 0) + (counts.output ?? 0);
+      costUsd += optionalNumberColumn(row, "estimated_cost_usd") ?? 0;
+    }
+    return { tokens, costUsd };
+  }
+
   read(raw: AgentAnalyticsInput): AgentAnalytics {
     // A spread does not trigger excess-property checking, so the host-only arrays of a
     // single-agent report are dropped by name rather than left for a decoder to strip.

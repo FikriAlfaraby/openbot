@@ -40,6 +40,7 @@ import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
+import { LoopGuard } from "../fork/loop-guard";
 import { routingSummaryOf } from "../fork/persona-summary";
 import { handlePersonaTool, isPersonaTool } from "../fork/persona-tools";
 import {
@@ -272,6 +273,8 @@ export class OpenBotToolRouter {
   readonly #apiKeys: AgentApiKeys | null;
   readonly #hooks: OpenBotToolRouterHooks;
   readonly #interruptTool: AgentInterruptTool;
+  /** Fork (item 4.2): refuses a call that keeps failing with the same input. */
+  readonly #loopGuard = new LoopGuard();
 
   constructor(options: OpenBotToolRouterOptions) {
     this.#history = new HistoryTools({
@@ -533,10 +536,30 @@ export class OpenBotToolRouter {
                 return openBotToolFailure(message);
               });
             const correctable = PROFILE_TOOL_NAMES.has(tool) || tool === "attach_files_to_response";
+            // Fork (item 4.2): the same failing call, again and again, is refused.
+            const guardedAgentId = this.#conversation.agentForThread(toolRequest.params.threadId);
+            const looping = guardedAgentId
+              ? this.#loopGuard.refusal(guardedAgentId, tool, toolRequest.params.arguments)
+              : null;
+            if (looping) {
+              client.respond(toolRequest.id, openBotToolFailure(looping));
+              return;
+            }
             const response = this.#handleOpenBotTool(toolRequest.params).pipe(
               Effect.catch((failure) => (correctable ? correctableFailure(failure.cause) : Effect.fail(failure))),
               Effect.catchDefect((defect) => (correctable ? correctableFailure(defect) : Effect.die(defect))),
-              Effect.tap((result) => Effect.sync(() => client.respond(toolRequest.id, result))),
+              Effect.tap((result) =>
+                Effect.sync(() => {
+                  if (guardedAgentId)
+                    this.#loopGuard.record(
+                      guardedAgentId,
+                      tool,
+                      toolRequest.params.arguments,
+                      result.success !== false,
+                    );
+                  client.respond(toolRequest.id, result);
+                }),
+              ),
             );
             // Both store a file and then add the message that names it.
             yield* tool === "attach_files_to_response" || tool === "html_render"

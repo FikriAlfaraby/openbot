@@ -5,6 +5,7 @@
 // or web tools.
 
 import { dirname } from "node:path";
+import type { BudgetLimit } from "./budget";
 import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
 import type { PlatformGate } from "./gate";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
@@ -169,4 +170,16 @@ export function forkT3Settings(sharedRoot: string): ForkT3Settings | null {
 /** The most words of a Router reply in a chat channel (item 2.7). */
 export function forkChatMaxWords(sharedRoot: string): number {
   return readerFor(sharedRoot).current().config.chatMaxWords ?? DEFAULT_CHAT_MAX_WORDS;
+}
+
+/**
+ * The daily budget of an agent (item 4.2): its own fields over the file's `budget`. Null when
+ * neither sets a limit.
+ */
+export function forkBudgetOf(sharedRoot: string, agentId: string): BudgetLimit | null {
+  const config = readerFor(sharedRoot).current().config;
+  const own = config.agentBudgets.get(agentId);
+  const dailyTokens = own?.dailyTokens ?? config.budget?.dailyTokens ?? null;
+  const dailyUsd = own?.dailyUsd ?? config.budget?.dailyUsd ?? null;
+  return dailyTokens === null && dailyUsd === null ? null : { dailyTokens, dailyUsd };
 }

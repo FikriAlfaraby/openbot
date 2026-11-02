@@ -64,3 +64,28 @@ runs before any agent sees the message and before OpenBot reacts to it. The obse
 the time, chat, sender id and the first 500 characters, redacted; it moves to `.1` at 2 MiB.
 Find your Telegram user id in the prompt of any message ("Telegram user <id>") or with a bot such
 as @userinfobot. Slack and Discord take the same block.
+
+## Daily budget and loop guard (item 4.2)
+
+```yaml
+budget:              # every agent without its own budget
+  dailyTokens: 2000000
+  dailyUsd: 5
+agents:
+  <agent id>:
+    role: worker
+    dailyTokens: 500000   # the agent's own budget, over the default
+```
+
+- The window is the last 24 hours, not a calendar day. Tokens are new input, cache writes and
+  output; cached input reads are left out (they cost a tenth of new input and would fill any
+  budget alone). Dollars are OpenBot's own estimate, as in the usage view.
+- A spent budget holds the agent's queue like a plan limit: messages, teammate requests,
+  Telegram messages and routine runs wait, and none fails. A turn that already runs ends normally.
+- The owner's own message in the OpenBot app still starts a turn.
+- The host checks the held agents every 5 minutes; the queue starts again when older spending
+  leaves the window or the owner raises the budget. The log says once when an agent is held.
+- Loop guard (no settings): an OpenBot tool call that failed 3 times in a row with the same input
+  within 10 minutes is refused, and the agent is told to change its approach or report the ticket
+  blocked. Another input or a success starts the count again. It sees OpenBot tools only, not the
+  provider's own tools such as `Bash`; the Watchdog's progress check covers those.
