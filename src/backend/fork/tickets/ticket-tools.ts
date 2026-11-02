@@ -30,6 +30,7 @@ export const TICKET_TOOL_NAMES = [
   "ticket_read",
   "ticket_report",
   "ticket_close",
+  "ticket_note",
 ] as const;
 export type TicketToolName = (typeof TICKET_TOOL_NAMES)[number];
 
@@ -82,6 +83,10 @@ const reportShape = {
     .optional()
     .describe("Required for awaiting_human: the one decision a person must make, with the options."),
 };
+const noteShape = {
+  ticket: TicketRef,
+  note: z.string().min(1).max(TICKET_LIMITS.note).describe("One finding, such as why the work looks stuck."),
+};
 const closeShape = {
   ticket: TicketRef,
   state: z.enum(CLOSE_STATES),
@@ -118,6 +123,11 @@ export const TICKET_TOOL_DEFINITIONS = [
     shape: reportShape,
   },
   {
+    name: "ticket_note",
+    description: "Router or Watchdog. Add one finding to a ticket's log, such as why its work looks stuck.",
+    shape: noteShape,
+  },
+  {
     name: "ticket_close",
     description: "Router only. End a ticket as done, failed or cancelled, with the reason.",
     shape: closeShape,
@@ -131,6 +141,7 @@ const schemas = {
   ticket_read: z.strictObject(readShape),
   ticket_report: z.strictObject(reportShape),
   ticket_close: z.strictObject(closeShape),
+  ticket_note: z.strictObject(noteShape),
 } satisfies Record<TicketToolName, z.ZodType>;
 
 export interface TicketWorkerTaskInput {
@@ -252,17 +263,21 @@ export const handleTicketTool = Effect.fn("TicketTools.handle")(function* (
         return yield* assign(ports, ticket, input.assignTo, null, callerId, name);
       }
       case "ticket_assign": {
-        const refused = routerOnly();
-        if (refused) return { ok: false, error: refused };
         const input = schemas.ticket_assign.parse(args);
-        return yield* assign(
-          ports,
-          resolve(ports.store, input.ticket),
-          input.agentId,
-          input.note ?? null,
-          callerId,
-          name,
-        );
+        const ticket = resolve(ports.store, input.ticket);
+        // The Watchdog may resume a ticket with its own worker; only the Router gives work to another one.
+        const watchdogResume = role === "watchdog" && ticket.assigneeAgentId === input.agentId;
+        const refused = watchdogResume ? null : routerOnly();
+        if (refused) return { ok: false, error: refused };
+        return yield* assign(ports, ticket, input.agentId, input.note ?? null, callerId, name);
+      }
+      case "ticket_note": {
+        if (role !== "router" && role !== "watchdog")
+          return { ok: false, error: "ticket_note is for the Router and the Watchdog." };
+        const input = schemas.ticket_note.parse(args);
+        const ticket = resolve(ports.store, input.ticket);
+        ports.store.note(ticket.ticketId, callerId, input.note);
+        return { ok: true, value: { ticket: ticket.number, noted: true } };
       }
       case "ticket_list": {
         const input = schemas.ticket_list.parse(args);

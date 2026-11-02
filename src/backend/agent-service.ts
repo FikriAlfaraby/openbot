@@ -233,12 +233,13 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
-import { forkChatMaxWords, forkGateOf, forkRoleOf } from "./fork/router-policy";
+import { forkChatMaxWords, forkGateOf, forkRoleOf, forkWatchdog } from "./fork/router-policy";
 import { writeStarterPersona } from "./fork/starter-persona";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
 import { ticketStoreFor } from "./fork/tickets/ticket-store";
+import { watchdogDue, watchdogFindings, watchdogMessage } from "./fork/tickets/watchdog";
 import type { HostMemory } from "./host-memory";
 import type { MailboxStore } from "./mailbox-store";
 import { toMcpOperationError } from "./mcp-effects";
@@ -276,6 +277,9 @@ const routingLogger = createOpenBotLogger("channel-routing");
  * application, and an unset entry keeps that copy in the search.
  */
 const DEFAULT_BUNDLED_EXECUTABLES: BundledProviderExecutables = { claude: null, grok: null };
+
+/** Fork: how often the host checks whether the Watchdog is due (item 4.1). */
+const WATCHDOG_TICK_MS = 5 * 60_000;
 
 export type { TestMcpServerOptions } from "./agent/mcp-gateway";
 export type { RoutineMutationOptions } from "./agent/routine-scheduler";
@@ -3555,6 +3559,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       this.#routines.skipMissed(new Date(), options.heldRoutines);
       this.#channelRoutines.skipMissed(new Date(), options.heldRoutines);
       this.#initialized = true;
+      // Fork: the Watchdog's scheduled wake (roadmap item 4.1). Checks often, wakes by the configured interval.
+      this.#watchdogTimer ??= setInterval(() => this.#watchdogTick(), WATCHDOG_TICK_MS);
+      this.#watchdogTimer.unref?.();
       this.#memoryHold.start();
     });
     yield* this.#providers
@@ -4090,6 +4097,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       { startImmediately: true },
     );
     this.#initialized = false;
+    if (this.#watchdogTimer) clearInterval(this.#watchdogTimer);
+    this.#watchdogTimer = null;
     this.#routineTimer.dispose();
     yield* this.#memoryHold.dispose();
     this.#hostedSites.dispose();
@@ -5163,6 +5172,55 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         Effect.forkIn(this.#scope, { startImmediately: true }),
       ),
     );
+  }
+
+  #watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  #watchdogLastWake: number | null = null;
+
+  /**
+   * Fork: wakes the Watchdog when its interval passed and a ticket is live, with the tickets that look
+   * stuck (item 4.1). Skips while an earlier wake waits in its queue. A failure skips this check.
+   */
+  #watchdogTick(): void {
+    try {
+      const { agentIds, everyMinutes, staleMinutes } = forkWatchdog(this.#store.sharedRoot);
+      const visible = new Set(
+        this.#store
+          .list()
+          .filter((agent) => agent.hiddenAt === undefined)
+          .map((agent) => agent.id),
+      );
+      const watchdogId = agentIds.find((id) => visible.has(id));
+      if (!watchdogId || this.#mailbox.nextQueued(watchdogId)) return;
+      const now = Date.now();
+      if (!watchdogDue(this.#watchdogLastWake, everyMinutes, now)) return;
+      const { live, findings } = watchdogFindings(ticketStoreFor(dirname(this.#store.automationRoot)), staleMinutes);
+      if (live === 0) return;
+      this.#watchdogLastWake = now;
+      Effect.runFork(
+        Effect.gen({ self: this }, function* () {
+          const receipt = yield* this.#mailbox.enqueue({
+            sender: { kind: "agent", agentId: watchdogId },
+            recipientAgentIds: [watchdogId],
+            text: watchdogMessage(live, findings),
+            sourcePaths: [],
+            replyToMessageId: null,
+            expectsReply: false,
+            idempotencyKey: `watchdog:${watchdogId}:${Math.floor(now / 60_000)}`,
+          });
+          for (const delivery of receipt.deliveries) {
+            this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+            this.#drain.scheduleDrain(delivery.recipientAgentId);
+          }
+        }).pipe(
+          Effect.catch(() => Effect.void),
+          Effect.catchDefect(() => Effect.void),
+          Effect.forkIn(this.#scope, { startImmediately: true }),
+        ),
+      );
+    } catch {
+      // The next tick tries again.
+    }
   }
 
   /** Fork: the gate of a chat message from `fork-config.yaml` (item 3.3); observed ones are recorded. */

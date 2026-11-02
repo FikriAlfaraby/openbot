@@ -61,8 +61,15 @@ const PlatformGateEntry = Schema.Struct({
   allow: Schema.optionalKey(Schema.Array(PlainText(64)).check(Schema.isMaxLength(500))),
 });
 
+/** The Watchdog's schedule (item 4.1). */
+const WatchdogSettings = Schema.Struct({
+  everyMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 5, maximum: 1_440 }))),
+  staleMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 10, maximum: 10_080 }))),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
+  watchdog: Schema.optionalKey(WatchdogSettings),
   gate: Schema.optionalKey(
     Schema.Struct({
       telegram: Schema.optionalKey(PlatformGateEntry),
@@ -91,6 +98,8 @@ export interface ForkConfig {
   mcpAgents: ReadonlyMap<string, ReadonlySet<string>>;
   /** The gate of each chat platform that the file names (item 3.3). */
   gates: ReadonlyMap<string, PlatformGate>;
+  /** The Watchdog's schedule; null for the defaults (item 4.1). */
+  watchdog: { everyMinutes?: number; staleMinutes?: number } | null;
 }
 
 export const EMPTY_FORK_CONFIG: ForkConfig = {
@@ -99,6 +108,7 @@ export const EMPTY_FORK_CONFIG: ForkConfig = {
   t3: null,
   mcpAgents: new Map(),
   gates: new Map(),
+  watchdog: null,
 };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
@@ -130,6 +140,7 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
       mcpAgents: new Map(
         Object.entries(decoded.success.mcp ?? {}).map(([name, access]) => [name, new Set(access.agents)]),
       ),
+      watchdog: decoded.success.watchdog ?? null,
       gates: new Map(
         Object.entries(decoded.success.gate ?? {}).map(([platform, entry]) => [
           platform,

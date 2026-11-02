@@ -92,3 +92,27 @@ never the model, and it cannot change afterwards (a wider scope needs a new tick
 Before `ticket_assign` resumes or follows up a ticket, and before `t3_run`, the host checks the
 mandate against the gate now: when the gate is off or the sender left the allow-list, the work is
 refused and the ticket's log says why. Agent mandates and tickets made before item 3.4 hold.
+
+## Watchdog (item 4.1)
+
+The agent with the role `watchdog` wakes on a schedule (`src/backend/fork/tickets/watchdog.ts`). The
+host checks every 5 minutes; when the interval has passed, a ticket is live, and no earlier wake waits
+in the Watchdog's queue, it queues one message with the tickets that look stuck:
+
+| Flag | When |
+|---|---|
+| `blocked` | the ticket is blocked |
+| `no_progress` | `working` and unchanged for `staleMinutes` |
+| `waits_long` | `awaiting_human` for `staleMinutes` |
+| `review_waits` | `review` for `staleMinutes` |
+
+```yaml
+watchdog:
+  everyMinutes: 30    # 5 to 1440; default 30
+  staleMinutes: 60    # 10 to 10080; default 60
+```
+
+With no live ticket nothing is sent, so a quiet team costs no tokens. The Watchdog runs `t3_sweep`,
+reads tickets, resumes a stuck ticket with its own worker (`ticket_assign` to the same agent),
+logs findings with `ticket_note`, and tells the Router only what needs its decision. It cannot give a
+ticket to another worker or close one.

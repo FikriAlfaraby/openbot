@@ -8,6 +8,7 @@ import { dirname } from "node:path";
 import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
 import type { PlatformGate } from "./gate";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
+import { DEFAULT_WATCHDOG } from "./tickets/watchdog";
 
 /** The OpenBot tools that a Router may call, by `namespace.tool`. Everything else is refused. */
 export const ROUTER_OPENBOT_TOOLS: ReadonlySet<string> = new Set([
@@ -144,6 +145,20 @@ export function forkMcpServersFor<T extends { name: string }>(
 /** The gate of a chat platform from `fork-config.yaml`, or null for upstream's behavior (item 3.3). */
 export function forkGateOf(sharedRoot: string, platform: string): PlatformGate | null {
   return readerFor(sharedRoot).current().config.gates.get(platform) ?? null;
+}
+
+/** The agents with the role `watchdog`, and the Watchdog's schedule (item 4.1). */
+export function forkWatchdog(sharedRoot: string): {
+  agentIds: string[];
+  everyMinutes: number;
+  staleMinutes: number;
+} {
+  const config = readerFor(sharedRoot).current().config;
+  return {
+    agentIds: [...config.roles].filter(([, role]) => role === "watchdog").map(([agentId]) => agentId),
+    everyMinutes: config.watchdog?.everyMinutes ?? DEFAULT_WATCHDOG.everyMinutes,
+    staleMinutes: config.watchdog?.staleMinutes ?? DEFAULT_WATCHDOG.staleMinutes,
+  };
 }
 
 /** The T3 Code settings of `fork-config.yaml`, or null (item 3.1b). */

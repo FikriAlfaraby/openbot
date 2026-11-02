@@ -88,7 +88,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 ## Phase 4: Watchdog, budget, resources
 
-- [ ] 4.1 Watchdog agent template and a routine every N minutes, with read-only ticket tools and
+- [x] 4.1 Watchdog agent template and a routine every N minutes, with read-only ticket tools and
       resume/close; it judges progress, not only liveness.
 - [ ] 4.2 Token budget per agent and a loop guard for repeated failing tool calls.
 - [ ] 4.3 Browser session per ticket (`openbot-browser-ticket-<id>`), removed when the ticket ends.
@@ -111,7 +111,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature. The two
   T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog; `t3_sweep`
   (item 3.1c) by 18 visible bytes and about 0.3 KB; the mandate's `scope` field (item 3.4) by 172
-  bytes of searchable schema; the two persona tools (item P.3) by 46 visible bytes and about 0.8 KB.
+  bytes of searchable schema; the two persona tools (item P.3) by 46 visible bytes and about 0.8 KB; `ticket_note` (item 4.1) by 21 visible bytes and about 0.5 KB.
 - An agent may add persona boundaries but not remove or reword one through `persona_update`; only
   the owner lifts a boundary by editing `persona.yaml`.
 

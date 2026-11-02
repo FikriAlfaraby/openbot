@@ -81,6 +81,7 @@ describe("ticket tool definitions", () => {
       "ticket_list",
       "ticket_read",
       "ticket_report",
+      "ticket_note",
       "ticket_close",
     ]);
     expect(isTicketTool("ticket_report")).toBe(true);
@@ -268,5 +269,26 @@ describe("the mandate of a ticket", () => {
     expect(JSON.parse(store.byNumber(1)?.mandateJson ?? "null")).toMatchObject({ strength: "agent" });
     gate = { mode: "off", allow: null };
     expect(await run("ticket_assign", { ticket: 1, agentId: "coder" }, "router")).toMatchObject({ ok: true });
+  });
+});
+
+describe("the Watchdog's ticket tools (item 4.1)", () => {
+  it("resumes a ticket with its own worker but cannot move it to another, and notes findings", async () => {
+    await run("ticket_create", { title: "Fix login", brief: "y", assignTo: "coder" }, "router");
+    expect(
+      await run("ticket_assign", { ticket: 1, agentId: "coder", note: "Retry the tests." }, "watch"),
+    ).toMatchObject({
+      ok: true,
+      value: { followUp: true },
+    });
+    expect(await run("ticket_assign", { ticket: 1, agentId: "researcher" }, "watch")).toMatchObject({ ok: false });
+    expect(await run("ticket_note", { ticket: 1, note: "No progress for 70 minutes." }, "watch")).toMatchObject({
+      ok: true,
+    });
+    expect(store.events(store.byNumber(1)?.ticketId ?? "").map((event) => event.note)).toContain(
+      "No progress for 70 minutes.",
+    );
+    expect(await run("ticket_note", { ticket: 1, note: "x" }, "coder")).toMatchObject({ ok: false });
+    expect(await run("ticket_close", { ticket: 1, state: "done", note: "x" }, "watch")).toMatchObject({ ok: false });
   });
 });
