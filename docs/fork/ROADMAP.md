@@ -27,7 +27,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       (`router`, `worker`, `watchdog`) by agent id. Validated, with tests. Agents cannot change it.
 - [x] 2.3 Router enforcement: a `router` agent gets no shell or file tools from its provider and
       only routing tools from OpenBot; the host refuses other tools. Tests.
-- [ ] 2.4 Ticket store (`src/backend/tickets/`): tickets with states `open`, `working`,
+- [x] 2.4 Ticket store (`src/backend/tickets/`): tickets with states `open`, `working`,
       `awaiting_human`, `review`, `blocked`, `done`, `failed`, `cancelled`; an append-only event log;
       idempotent creation per source message. Storage choice in the notes of 2.1 (own SQLite file or
       a migration). Tests.
@@ -92,7 +92,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - The Router gets no external MCP servers, no Claude shell/file/web tools (`Bash`, `Read`, `Write`,
   `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Task`, `Agent`, `Skill`), and only the OpenBot
   tools in `ROUTER_OPENBOT_TOOLS` (`src/backend/fork/router-policy.ts`).
-- Tickets live in `openbot.db` (migration v50), not in a separate file.
+- Tickets live in their own `fork-tickets.db`, not in a migration of `openbot.db`: upstream owns that
+  migration sequence, and a fork v50 would collide with upstream's v50 at the next sync. (Changed
+  from the first plan in item 2.4.)
 
 ## Findings
 
