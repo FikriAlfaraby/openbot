@@ -72,7 +72,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] P.3 The agent reads and edits its persona through OpenBot tools (`persona_read`,
       `persona_update` with validation and a version), not only by editing the file; an invalid
       edit is refused with the field. Tests.
-- [ ] P.4 Fresh persona on every turn: check that a persona change reaches running Claude, Codex
+- [x] P.4 Fresh persona on every turn: check that a persona change reaches running Claude, Codex
       and ACP sessions (fingerprint restart or a turn block like the memories); fix the gap. Tests.
 - [ ] P.5 Agent templates and imports carry `persona.yaml` (`src/main/agent-template-service.ts`).
 - [ ] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
@@ -150,3 +150,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   its decision. A model assessment of observed messages could come later, at a token cost.
 - `list_agents` now shows the persona's `routing_summary` in place of the cut description, and the
   agent's fork role. The section-teammates block keeps name and title only, to keep its prompt cache.
+- Item P.4: Codex already replaced a loaded session when its fingerprint (which holds the persona
+  hash, the global text and the role) changed, at each turn. Claude, ACP, Pi and Muse resume a session
+  only when it is not loaded, so a persona change waited for the next load. ThreadLifecycle now hashes
+  the fork inputs at each turn and, on a change, unloads the agent's sessions, as upstream does for a
+  profile change; the next turn resumes with the new instructions.

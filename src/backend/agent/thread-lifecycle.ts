@@ -14,11 +14,12 @@ import {
 import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
-import { Effect, Result, Schema } from "effect";
+import { Effect, Option, Result, Schema } from "effect";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
+import { ForkSignatures } from "../fork/fork-signatures";
 import { forkMcpServersFor, forkRoleOf, ROUTER_CODEX_CONFIG } from "../fork/router-policy";
 import { type HomeSkill, listHomeSkills, skillFolderNames } from "../home-skills";
 import type { MailboxStore } from "../mailbox-store";
@@ -64,7 +65,12 @@ import {
   renderRoutineHandoff,
 } from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
-import { type PersonaForPrompt, personaForPrompt } from "./persona/persona-file";
+import {
+  type PersonaForPrompt,
+  personaForPrompt,
+  readGlobalInstructions,
+  readPersonaText,
+} from "./persona/persona-file";
 import { snapshotPersona } from "./persona/persona-history";
 import { isProviderTimeout } from "./provider-status";
 import { sessionSettingsIdentity } from "./session-settings";
@@ -436,6 +442,10 @@ export class ThreadLifecycle {
       session: this.#store.database.activeProviderSession(publicThreadId, agent.provider),
     }));
     if (session) {
+      // Fork: a persona, global text, role or MCP change since the last turn loads the session again, so
+      // the next turn has the new instructions (roadmap item P.4), as a profile change does upstream.
+      if (this.#forkSignatures.changed(currentAgent.id, yield* this.#forkSignature(currentAgent)))
+        this.#conversation.unloadAgentThreads(currentAgent.id);
       this.#conversation.bindThread(session.externalSessionId, agent.id, publicThreadId);
       const handoff = yield* Effect.result(
         threadIo(() => readFile(this.handoffPath(session.externalSessionId), "utf8")),
@@ -1070,6 +1080,35 @@ export class ThreadLifecycle {
     const allowed = this.#agentMcpServers(agent);
     return allowed.length === all.length ? {} : { forkMcpServers: allowed.map((server) => server.name) };
   }
+
+  /** Fork: the last fork signature of each agent's sessions (`#forkSignature`). */
+  readonly #forkSignatures = new ForkSignatures();
+
+  /**
+   * Fork: what the fork adds to an agent's instructions and tools, as one hash: the persona text, the
+   * global instructions, the role and the allowed MCP servers. Reads one small file and the cached
+   * fork configuration; a read that fails counts as no persona.
+   */
+  readonly #forkSignature = Effect.fn("ThreadLifecycle.forkSignature")(function* (
+    this: ThreadLifecycle,
+    agent: AgentSummary,
+  ) {
+    const persona = yield* readPersonaText(agent.workspacePath).pipe(
+      Effect.map((text) => Option.getOrElse(text, () => "")),
+      Effect.orElseSucceed(() => ""),
+    );
+    const global = yield* readGlobalInstructions(dirname(this.#store.sharedRoot));
+    return createHash("sha256")
+      .update(
+        JSON.stringify([
+          persona,
+          global,
+          forkRoleOf(this.#store.sharedRoot, agent.id),
+          this.#agentMcpServers(agent).map((server) => server.name),
+        ]),
+      )
+      .digest("hex");
+  });
 
   /** Fork: tells the provider client that this agent is the Router, which gets no work tools. */
   #forkRoleParam(agent: AgentSummary, client: AgentClient): { forkRole?: "router" } {

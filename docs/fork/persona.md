@@ -50,9 +50,10 @@ Without `persona.yaml` and `global-instructions.md`, the prompt is byte-for-byte
 
 ## Versions and rollback
 
-Each session start reads `persona.yaml` and records a new version when the text changed. The
-session fingerprint includes the persona hash and the global text, so a change starts a new
-provider session with the new persona (Codex otherwise keeps the old instructions).
+Each session start reads `persona.yaml` and records a new version when the text changed. At each
+turn OpenBot hashes the persona, the global text, the role and the allowed MCP servers; after a
+change it loads the agent's sessions again, so the next turn already has the new persona, for every
+provider (item P.4).
 
 ```sh
 bun scripts/persona.ts validate ~/OpenBot/Agents/<id>/persona.yaml
