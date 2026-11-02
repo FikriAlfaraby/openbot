@@ -19,7 +19,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 ## Phase 2: Router and tickets
 
-- [ ] 2.1 Research notes (`docs/fork/notes/runtime.md`): how a Telegram message reaches an agent,
+- [x] 2.1 Research notes (`docs/fork/notes/runtime.md`): how a Telegram message reaches an agent,
       how queued messages become turns (batching), how `start_task`, `send_message` and channel
       tasks run, where a provider's tool set is set (Claude, Codex), and where the host can refuse a
       tool. No code change.
@@ -79,6 +79,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       resume/close; it judges progress, not only liveness.
 - [ ] 4.2 Token budget per agent and a loop guard for repeated failing tool calls.
 - [ ] 4.3 Browser session per ticket (`openbot-browser-ticket-<id>`), removed when the ticket ends.
+- [ ] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
+      one Router turn together; today `startDelivery` runs each external message alone.
 - [ ] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
       `openbot.db` with the keyring (`docs/fork/storage.md`).
 
@@ -87,3 +89,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - T3 Code MCP accepts only OAuth; `t3 thread` on the host needs no sign-in.
 - The server updater accepts only `X.Y.Z` versions.
 - A version bump needs a `CHANGELOG.md` section (pre-commit hook); use `bun run release:patch`.
+- The Router is the existing Telegram Orchestrator agent; it already delegates with `send_message`
+  and answers return to the same Telegram thread (`docs/fork/notes/runtime.md`).
+- `start_task` works only for the calling agent; tickets need a host-side task for the worker.
+- A Telegram private chat is one thread; follow-ups there match tickets by the reply chain.
