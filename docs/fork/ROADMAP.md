@@ -94,8 +94,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       (`src/backend/fork/budget.ts`, `loop-guard.ts`, `docs/fork/fork-config.md`).
 - [x] 4.3 Browser session per ticket, removed when the ticket ends (`src/backend/fork/browser-ticket.ts`,
       `docs/fork/tickets.md`).
-- [ ] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
-      one Router turn together; today `startDelivery` runs each external message alone.
+- [x] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
+      one Router turn together (`src/backend/fork/router-batch.ts`, `MessagingThreads.companions`).
 - [ ] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
       `openbot.db` with the keyring (`docs/fork/storage.md`).
 
@@ -130,6 +130,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - Item 4.3: the ticket session is an agent-kind partition `openbot-browser-agent-<hash>` with the
   hash of `fork-ticket:<ticket id>`, not a new `openbot-browser-ticket-<id>` kind: a new kind would
   change the saved browser state that upstream owns. A named profile of the agent wins over it.
+
+- Item 4.5: batching is for the Router only, one conversation and one author, at most 10 messages,
+  with one answer as a reply to the first message. Other agents keep upstream's one turn per message.
 
 ## Findings
 
@@ -183,3 +186,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   can go past it.
 - Item 4.3: BrowserHost has no unit tests in upstream (it needs Electron); the fork tests the
   session choice and the sweep, and the BrowserHost wiring is checked by the type checker only.
+- Item 4.5: one messaging turn posts one answer, to the origin of the first running delivery; the
+  other deliveries of the turn are settled without a second post (`#finishedTurns`). Upstream has no
+  unit tests for the mailbox, the drain or `MessagingThreads`; the fork tests the selection and the
+  prompt text, and the wiring is checked by the type checker only.

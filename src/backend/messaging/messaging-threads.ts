@@ -13,6 +13,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result, Schema, type Scope } from "effect";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "../agent/routine-tools";
 import { causeHelpers } from "../effect-boundary";
+import { type BatchCandidate, batchedMessageText, routerBatchCompanions } from "../fork/router-batch";
 import type { DeliveryContext, MailboxStore, MessagingOrigin } from "../mailbox-store";
 import type { OpenBotDatabase } from "../openbot-database";
 import { MessagingMemoryStore } from "./messaging-memory-store";
@@ -485,9 +486,30 @@ export class MessagingThreads {
     return this.#mailbox.messagingOrigin(deliveryId) !== null;
   }
 
+  /**
+   * Fork (item 4.5): the queued messages of the same conversation and author that start in the same
+   * turn as this one, in queue order.
+   */
+  companions(context: DeliveryContext): DeliveryContext[] {
+    const origin = this.#mailbox.messagingOrigin(context.delivery.id);
+    if (!origin) return [];
+    const conversation = this.#mailbox.unresolvedMessagingDeliveries(origin.linkId);
+    const candidate = (item: DeliveryContext): BatchCandidate => ({
+      id: item.delivery.id,
+      status: item.delivery.status,
+      senderKind: item.delivery.sender.kind,
+      authorId: this.#mailbox.messagingOrigin(item.delivery.id)?.authorId ?? null,
+      resumeTurnId: item.resumeAfterUsageLimit?.turnId ?? null,
+      planContinuation: item.planContinuation !== undefined,
+    });
+    const ids = new Set(routerBatchCompanions(candidate(context), conversation.map(candidate)));
+    return conversation.filter((item) => ids.has(item.delivery.id));
+  }
+
   readonly prepare = Effect.fn("MessagingThreads.prepare")(function* (
     this: MessagingThreads,
     context: DeliveryContext,
+    companions: readonly DeliveryContext[] = [],
   ): Effect.fn.Return<{ threadId: string; text: string } | null, MessagingThreadFailed> {
     const origin = this.#mailbox.messagingOrigin(context.delivery.id);
     if (!origin) return null;
@@ -507,7 +529,8 @@ export class MessagingThreads {
       place: prompt.place,
       authorName: origin.authorName,
       authorId: origin.authorId,
-      text: context.delivery.text,
+      // Fork (item 4.5): the batched messages of one turn go in one message block.
+      text: batchedMessageText([context.delivery.text, ...companions.map((item) => item.delivery.text)]),
       context: prompt.messages,
       replyTo: origin.replyTo ?? null,
       skippedFiles: prompt.skippedFiles,

@@ -5,3 +5,4 @@
 - Hold an agent's queue when it spends its daily token or dollar budget from `fork-config.yaml`,
   and refuse an OpenBot tool call that keeps failing with the same input.
 - Open a ticket worker's browser tabs in a session of that ticket, and delete it when the ticket ends.
+- Start one Router turn for a person's chat messages that queued together, with one answer.

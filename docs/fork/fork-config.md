@@ -89,3 +89,11 @@ agents:
   within 10 minutes is refused, and the agent is told to change its approach or report the ticket
   blocked. Another input or a success starts the count again. It sees OpenBot tools only, not the
   provider's own tools such as `Bash`; the Watchdog's progress check covers those.
+
+## Router batching (item 4.5)
+
+No setting. When a person sends several chat messages while the agent with the role `router`
+works, the queued ones start one Router turn together, and the Router answers once, as a reply to
+the first. Only messages of one conversation and one author join, in queue order, at most 10; the
+run stops at the first other author, teammate answer or usage-limit resume. Other agents keep one
+turn per chat message.

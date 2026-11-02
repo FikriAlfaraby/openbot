@@ -7,6 +7,7 @@ import { type AgentProvider, ProviderTurnActiveError } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
+import { forkRoleOf } from "../fork/router-policy";
 import type { DeliveryContext, MailboxStore } from "../mailbox-store";
 import type { MessagingThreads } from "../messaging/messaging-threads";
 import { decodeTurnResponse } from "../protocol";
@@ -643,12 +644,23 @@ export class DrainScheduler {
       planNote !== undefined || channelDelivery || ownSession || (messagingDelivery && delivery.sender.kind !== "agent")
         ? []
         : this.#mailbox.repliesToStartWith(delivery.id);
+    // Fork (item 4.5): the Router reads a person's chat messages that queued together in one turn.
+    const messagingCompanions =
+      planNote === undefined &&
+      messagingDelivery &&
+      !ownSession &&
+      delivery.sender.kind !== "agent" &&
+      forkRoleOf(this.#store.sharedRoot, delivery.recipientAgentId) === "router"
+        ? (this.#messaging?.companions?.(context) ?? [])
+        : [];
     const laterMessages =
       planNote !== undefined
         ? this.#mailbox.planContinuationsToStartWith(delivery.id)
-        : channelDelivery || ownSession || messagingDelivery
+        : channelDelivery || ownSession
           ? []
-          : this.#mailbox.userMessagesToStartWith(delivery.id);
+          : messagingDelivery
+            ? messagingCompanions
+            : this.#mailbox.userMessagesToStartWith(delivery.id);
     const companions = [...replies, ...laterMessages];
     let batch =
       planNote !== undefined || delivery.sender.kind === "user"
@@ -717,7 +729,14 @@ export class DrainScheduler {
             : null
           : messagingDelivery
             ? messaging
-              ? yield* messaging.prepare(context).pipe(toDeliveryStartFailed)
+              ? yield* messaging
+                  .prepare(
+                    context,
+                    batch.filter((item) =>
+                      messagingCompanions.some((companion) => companion.delivery.id === item.delivery.id),
+                    ),
+                  )
+                  .pipe(toDeliveryStartFailed)
               : undefined
             : channels
               ? yield* channels.prepare(context).pipe(toDeliveryStartFailed)
@@ -773,23 +792,28 @@ export class DrainScheduler {
           item.sender.kind === "agent" && item.replyToMessageId ? [item.replyToMessageId] : [],
         ),
       );
+      const batchedIds = new Set(messagingCompanions.map((companion) => companion.delivery.id));
       const promptInput = (executionText: string | undefined) => {
         // The deliveries of one interrupted turn share its continuation, so the prompt states it once.
         const continued = new Set<string>();
         return combinedPromptInput(
-          batch.map((item) => {
-            const { resumeAfterUsageLimit, ...rest } = item;
-            const repeated = resumeAfterUsageLimit !== undefined && continued.has(resumeAfterUsageLimit.turnId);
-            if (resumeAfterUsageLimit) continued.add(resumeAfterUsageLimit.turnId);
-            return deliveryPromptInput(repeated ? rest : item, {
-              agentNames,
-              snapshot,
-              routineRun:
-                item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
-              wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
-              ...(executionText === undefined ? {} : { executionText }),
-            });
-          }),
+          batch
+            .map((item) => {
+              const { resumeAfterUsageLimit, ...rest } = item;
+              const repeated = resumeAfterUsageLimit !== undefined && continued.has(resumeAfterUsageLimit.turnId);
+              if (resumeAfterUsageLimit) continued.add(resumeAfterUsageLimit.turnId);
+              const input = deliveryPromptInput(repeated ? rest : item, {
+                agentNames,
+                snapshot,
+                routineRun:
+                  item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
+                wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
+                ...(executionText === undefined ? {} : { executionText }),
+              });
+              // Fork (item 4.5): a batched chat message is in the first one's text; its files stay.
+              return batchedIds.has(item.delivery.id) ? input.filter((part) => part.type !== "text") : input;
+            })
+            .filter((input, index) => input.length > 0 || !batchedIds.has(batch[index]?.delivery.id ?? "")),
           [...requestIds].flatMap((requestId) => this.#mailbox.unansweredRecipients(requestId)),
           agentNames,
         );
