@@ -41,6 +41,7 @@ import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
 import { routingSummaryOf } from "../fork/persona-summary";
+import { handlePersonaTool, isPersonaTool } from "../fork/persona-tools";
 import {
   filterDiscoveryForRouter,
   forkGateOf,
@@ -778,6 +779,15 @@ export class OpenBotToolRouter {
         params.arguments,
         senderAgentId,
       ).pipe(Effect.catch((cause) => Effect.fail(new ToolOperationFailed({ cause }))));
+      return outcome.ok ? openBotToolResult(outcome.value) : openBotToolFailure(outcome.error);
+    }
+    // Fork: the agent's own persona (src/backend/fork/persona-tools.ts).
+    if (isPersonaTool(params.tool)) {
+      const caller = this.#hooks.listAgents().find((agent) => agent.id === senderAgentId);
+      if (!caller) throw new Error("The sending OpenBot agent is unknown.");
+      const outcome = yield* handlePersonaTool(caller.workspacePath, params.tool, params.arguments).pipe(
+        Effect.catch((cause) => Effect.fail(new ToolOperationFailed({ cause }))),
+      );
       return outcome.ok ? openBotToolResult(outcome.value) : openBotToolFailure(outcome.error);
     }
     // Fork: the coding executor's tools (src/backend/fork/t3/t3-tools.ts).

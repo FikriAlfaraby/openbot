@@ -34,6 +34,9 @@ export const ROUTER_OPENBOT_TOOLS: ReadonlySet<string> = new Set([
   "openbot.forget_memory",
   "openbot.history_search",
   "openbot.history_read",
+  // Its own persona (item P.3): the Router has no file tools to edit it.
+  "openbot.persona_read",
+  "openbot.persona_update",
   // Routine reports, so that a routine run of the Router can end.
   "openbot.routine_no_update",
   "openbot.routine_report_failure",

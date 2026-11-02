@@ -69,7 +69,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] P.2 Channel output norms in the persona (article §4.2): `channels.chat` (short, at most N
       words, only decisions) and `channels.async` (GitHub, email, documents: structured, complete);
       the prompt names the rule for the channel of the turn. Tests.
-- [ ] P.3 The agent reads and edits its persona through OpenBot tools (`persona_read`,
+- [x] P.3 The agent reads and edits its persona through OpenBot tools (`persona_read`,
       `persona_update` with validation and a version), not only by editing the file; an invalid
       edit is refused with the field. Tests.
 - [ ] P.4 Fresh persona on every turn: check that a persona change reaches running Claude, Codex
@@ -108,7 +108,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature. The two
   T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog; `t3_sweep`
   (item 3.1c) by 18 visible bytes and about 0.3 KB; the mandate's `scope` field (item 3.4) by 172
-  bytes of searchable schema.
+  bytes of searchable schema; the two persona tools (item P.3) by 46 visible bytes and about 0.8 KB.
+- An agent may add persona boundaries but not remove or reword one through `persona_update`; only
+  the owner lifts a boundary by editing `persona.yaml`.
 
 ## Findings
 

@@ -43,6 +43,7 @@ import {
   listWaitsToolSchema,
 } from "./agent-waits/agent-waits";
 import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
+import { PERSONA_TOOL_DEFINITIONS } from "./fork/persona-tools";
 import { T3_TOOL_DEFINITIONS } from "./fork/t3/t3-tools";
 import { TICKET_TOOL_DEFINITIONS } from "./fork/tickets/ticket-tools";
 import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
@@ -302,6 +303,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   // Fork: the super agent's ticket tools (src/backend/fork/tickets/ticket-tools.ts).
   ...TICKET_TOOL_DEFINITIONS,
   ...T3_TOOL_DEFINITIONS,
+  ...PERSONA_TOOL_DEFINITIONS,
   {
     name: "list_sites",
     description:

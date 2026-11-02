@@ -68,6 +68,7 @@ the persona overrode it; then compare the new default with your override.
 
 ## Not in phase 1
 
-- No settings UI or IPC; edit the files directly (the agent can edit its own `persona.yaml`).
+- No settings UI or IPC; edit the files directly. Agents use `persona_read` and `persona_update`
+  (item P.3): validated, versioned, and they can add boundaries but never remove or reword one.
 - `list_agents` shows `routing_summary` in place of the description when the persona has one (item P.1).
 - Agent templates and imports do not carry `persona.yaml` yet.
