@@ -23,7 +23,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       how queued messages become turns (batching), how `start_task`, `send_message` and channel
       tasks run, where a provider's tool set is set (Claude, Codex), and where the host can refuse a
       tool. No code change.
-- [ ] 2.2 Host-side fork config `<OpenBot>/fork-config.yaml`, outside agent workspaces: agent roles
+- [x] 2.2 Host-side fork config `<OpenBot>/fork-config.yaml`, outside agent workspaces: agent roles
       (`router`, `worker`, `watchdog`) by agent id. Validated, with tests. Agents cannot change it.
 - [ ] 2.3 Router enforcement: a `router` agent gets no shell or file tools from its provider and
       only routing tools from OpenBot; the host refuses other tools. Tests.
@@ -93,3 +93,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   and answers return to the same Telegram thread (`docs/fork/notes/runtime.md`).
 - `start_task` works only for the calling agent; tickets need a host-side task for the worker.
 - A Telegram private chat is one thread; follow-ups there match tickets by the reply chain.
+- `fork-config.yaml` holds roles only for Workspace-only agents; a Full-access agent can edit any
+  file. An invalid edit keeps the last valid roles (`src/backend/fork/fork-config.ts`).
