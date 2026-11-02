@@ -228,3 +228,29 @@ describe("developerInstructions with a persona", () => {
     expect(text).toContain(OVERRIDABLE_RULES.style);
   });
 });
+
+describe("channel output norms (item P.2)", () => {
+  it("parses chat and async rules and names them in the prompt", async () => {
+    const parsed = parsePersona("channels:\n  chat: At most 100 words.\n  async: Structured, with verification.\n");
+    expect(parsed.ok && parsed.persona.channels).toEqual({
+      chat: "At most 100 words.",
+      async: "Structured, with verification.",
+    });
+    expect(parsePersona("channels:\n  sms: x\n").ok).toBe(false);
+    await writeFile(join(workspace, "persona.yaml"), "channels:\n  chat: At most 100 words.\n");
+    const loaded = await run(personaForPrompt(workspace, root, snapshotPersona));
+    const text = developerInstructions(
+      agent(workspace),
+      join(root, "Shared"),
+      [],
+      join(root, "auto"),
+      DEFAULT_AGENT_DEFAULTS,
+      {
+        persona: loaded.persona,
+      },
+    );
+    expect(text).toContain("channels.chat for Slack, Discord and Telegram replies");
+    expect(text).not.toContain("channels.async for GitHub");
+    expect(text).toContain('"chat":"At most 100 words."');
+  });
+});

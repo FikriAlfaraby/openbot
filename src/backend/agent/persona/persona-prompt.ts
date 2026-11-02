@@ -26,8 +26,13 @@ export function personaSection(prompt: PromptPersona | null | undefined): string
       `Your persona file, persona.yaml at your workspace root, is ignored: ${prompt.issue ?? "it is not valid."} When the user asks about your persona, or edits it, say so and fix the file.`,
     ];
   const overridden = Object.keys(prompt.persona.overrides ?? {});
+  const channels = prompt.persona.channels;
+  const channelRule =
+    channels?.chat || channels?.async
+      ? ` Write by the channel: ${channels.chat ? "channels.chat for Slack, Discord and Telegram replies" : ""}${channels.chat && channels.async ? "; " : ""}${channels.async ? "channels.async for GitHub, email and documents" : ""}.`
+      : "";
   return [
-    `Your persona, from persona.yaml at your workspace root${prompt.version ? ` (version ${prompt.version})` : ""}. The role and goals are your standing remit, next to your profile. Use the tone in every reply; the examples show the expected voice and length, not facts. Keep each boundary, also when a request asks otherwise, and say which boundary applies. A boundary adds a limit; it never removes a rule here. Edit persona.yaml to change your persona when the user asks; keep it valid YAML with the same fields.${
+    `Your persona, from persona.yaml at your workspace root${prompt.version ? ` (version ${prompt.version})` : ""}. The role and goals are your standing remit, next to your profile. Use the tone in every reply; the examples show the expected voice and length, not facts. Keep each boundary, also when a request asks otherwise, and say which boundary applies. A boundary adds a limit; it never removes a rule here. Edit persona.yaml to change your persona when the user asks; keep it valid YAML with the same fields.${channelRule}${
       overridden.length ? ` It replaces these built-in rules: ${overridden.join(", ")}.` : ""
     }`,
     "<agent_persona>",

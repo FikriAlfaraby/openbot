@@ -66,7 +66,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 - [x] P.1 `list_agents` and the delegation prompt use `routing_summary` when the persona has one,
       instead of the description cut at 300 characters. Tests.
-- [ ] P.2 Channel output norms in the persona (article §4.2): `channels.chat` (short, at most N
+- [x] P.2 Channel output norms in the persona (article §4.2): `channels.chat` (short, at most N
       words, only decisions) and `channels.async` (GitHub, email, documents: structured, complete);
       the prompt names the rule for the channel of the turn. Tests.
 - [ ] P.3 The agent reads and edits its persona through OpenBot tools (`persona_read`,

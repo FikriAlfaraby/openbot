@@ -25,6 +25,7 @@ export const PERSONA_LIMITS = {
   examples: 6,
   exampleText: 1_200,
   override: 1_500,
+  channelRule: 600,
 } as const;
 
 const Line = Schema.Trim.check(Schema.isNonEmpty(), Schema.isMaxLength(PERSONA_LIMITS.line));
@@ -52,6 +53,13 @@ export const PersonaDocument = Schema.Struct({
   boundaries: Schema.optionalKey(Schema.Array(Line).check(Schema.isMaxLength(PERSONA_LIMITS.boundaries))),
   examples: Schema.optionalKey(Schema.Array(PersonaExample).check(Schema.isMaxLength(PERSONA_LIMITS.examples))),
   routing_summary: Schema.optionalKey(Text(PERSONA_LIMITS.routingSummary)),
+  /** How to write in each kind of channel (DeepSeek Super-agent article, section 4.2; item P.2). */
+  channels: Schema.optionalKey(
+    Schema.Struct({
+      chat: Schema.optionalKey(Text(PERSONA_LIMITS.channelRule)),
+      async: Schema.optionalKey(Text(PERSONA_LIMITS.channelRule)),
+    }),
+  ),
   overrides: Schema.optionalKey(Schema.Struct(overrideFields)),
 });
 

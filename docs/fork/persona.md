@@ -28,6 +28,8 @@ tells the agent that the file is ignored and why (a field name or a limit, never
 | `boundaries` | list of lines | 24 × 300 |
 | `examples` | list of `{user, agent}` | 6 × 1 200 each |
 | `routing_summary` | text | 300 (for the Router in phase 2) |
+| `channels.chat` | text: how to write in Slack, Discord and Telegram | 600 |
+| `channels.async` | text: how to write in GitHub, email and documents | 600 |
 | `overrides` | map of rule key → text | 1 500 each |
 
 Override keys: `style`, `remit`, `group_chat`. Their default texts are in
