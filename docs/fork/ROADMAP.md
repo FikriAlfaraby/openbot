@@ -100,6 +100,16 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       `openbot.db` with the keyring (`docs/fork/storage.md`, `scripts/fork/openbot-backup`,
       `src/backend/fork/storage/ticket-archive.ts`).
 
+## Phase 5: research-driven
+
+Each item comes from a comparison of the fork with the DeepSeek Super-agent article, other OpenBot
+forks, T3 Code and the product needs (a Telegram team that does not use the OpenBot app).
+
+- [x] 5.1 Inline & Spill for chat answers (article §3.3: inline what fits, spill the rest with a
+      pointer). A cut Router answer used to point to the OpenBot app, which a Telegram-only team
+      never opens; now the full answer comes as `full-answer.md` in the same conversation
+      (`src/backend/fork/spill.ts`).
+
 ## Default decisions (taken while the owner was away; review them)
 
 - The Router gets no external MCP servers, no Claude shell/file/web tools (`Bash`, `Read`, `Write`,
@@ -139,6 +149,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   A backup always contains the keyring, so an upload to a bucket is refused unless it is encrypted
   with age or gpg, or `OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD=1`. The timer runs daily at about 03:17
   server time and keeps 7 archives locally.
+
+- Item 5.1: a cut Router answer always spills to a file in chat (no setting); when the file cannot
+  be written, the post points to the app as before. Spill files stay 7 days.
 
 ## Findings
 
@@ -199,3 +212,6 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - Item 4.4: the "ticket folders" are T3 Code's worktrees, which T3 owns; the `t3` command has no
   command to remove a thread's worktree, so their cleanup is T3's **Worktrees → Cleanup** setting.
   The fork cleans what it owns: ticket rows (archive), browser sessions (4.3) and its observation log.
+- Item 5.1: the Telegram, Slack and Discord drivers already upload answer files; the spill rides
+  on that path, after the cut post. A platform that refuses the file shows the usual "files
+  skipped" note.

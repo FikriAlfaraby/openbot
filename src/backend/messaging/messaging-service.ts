@@ -43,6 +43,7 @@ import type { MessagingConnectionRecord, MessagingLink } from "./messaging-store
 import {
   MESSAGING_NOT_RUNNING,
   type MessagingActivity,
+  type MessagingAnswerFile,
   type MessagingHistory,
   type MessagingHistoryScope,
   type MessagingThreads,
@@ -105,7 +106,7 @@ export interface MessagingAgents {
   /** The agents and group chats that the sidebar can assign to a section. */
   sidebarChatIds(): ReadonlySet<string>;
   /** Fork: the host's reply rule for an agent's answer in a chat channel (`fork/reply-rules.ts`). */
-  shapeAnswer?(agentId: string, text: string): string;
+  shapeAnswer?(agentId: string, text: string): { text: string; spill?: MessagingAnswerFile };
   /** Fork: the gate of a message, before any agent sees it (`fork/gate.ts`). Absent accepts all. */
   gate?(record: MessagingConnectionRecord, message: InboundMessage): "accept" | "observe" | "drop";
 }
@@ -1509,10 +1510,10 @@ export class MessagingService {
     }
     this.#targets.delete(key);
     const posted = finalPost(activity, this.#threads.awaitsTeammate(activity.link.linkId));
-    const final =
-      posted.answer && this.#agents.shapeAnswer
-        ? { ...posted, text: this.#agents.shapeAnswer(activity.link.agentId, posted.text) }
-        : posted;
+    // Fork: the reply rule can cut the answer and spill the full text to a file (items 2.7, 5.1).
+    const shaped =
+      posted.answer && this.#agents.shapeAnswer ? this.#agents.shapeAnswer(activity.link.agentId, posted.text) : null;
+    const final = shaped ? { ...posted, text: shaped.text } : posted;
     const ended: StatusPost = {
       connectionId: activity.link.connectionId,
       target,
@@ -1527,9 +1528,10 @@ export class MessagingService {
     // A paused or reconnecting conversation gets the post when it is connected again.
     if (!live) return;
     yield* this.#deliverFinal(live, key, ended);
-    if (activity.type === "finished" && activity.status === "completed" && activity.files.length) {
+    const files = activity.type === "finished" ? [...activity.files, ...(shaped?.spill ? [shaped.spill] : [])] : [];
+    if (activity.type === "finished" && activity.status === "completed" && files.length) {
       const { adapter } = live;
-      const skipped = yield* adapter.upload(target, activity.files).pipe(toMessagingOperationFailed);
+      const skipped = yield* adapter.upload(target, files).pipe(toMessagingOperationFailed);
       if (skipped.length)
         yield* adapter
           .post(target, {

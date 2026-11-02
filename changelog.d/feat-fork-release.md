@@ -8,3 +8,4 @@
 - Start one Router turn for a person's chat messages that queued together, with one answer.
 - Move old ended tickets to a monthly archive file, and add a daily server backup with the keyring
   that refuses an unencrypted upload to a bucket.
+- Send the full text of a cut Router chat answer as `full-answer.md` in the same conversation.

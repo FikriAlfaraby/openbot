@@ -41,8 +41,11 @@ chat:
 ```
 
 A Router answer in Slack, Discord or Telegram longer than `maxWords` words is cut at the end of the
-last sentence that fits, and the post adds "The full answer is in the OpenBot app." The Router's
-conversation in the app keeps the full answer. Other agents' answers are not changed.
+last sentence that fits. The full answer is sent in the same conversation as the file
+`full-answer.md`, and the post says so (item 5.1, Inline & Spill), so a person who never opens the
+OpenBot app still reads it. When the file cannot be written, the post says "The full answer is in
+the OpenBot app." instead. Spilled files are kept in `<user data>/fork-spill/` for 7 days. Other
+agents' answers are not changed.
 
 ## Gate for chat platforms (item 3.3)
 

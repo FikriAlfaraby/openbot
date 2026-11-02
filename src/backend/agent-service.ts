@@ -234,7 +234,7 @@ import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetNote, ForkBudget } from "./fork/budget";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
-import { limitWords } from "./fork/reply-rules";
+import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
 import {
   forkArchiveAfterDays,
   forkBudgetOf,
@@ -243,6 +243,7 @@ import {
   forkRoleOf,
   forkWatchdog,
 } from "./fork/router-policy";
+import { pruneSpills, type SpillFile, writeSpill } from "./fork/spill";
 import { writeStarterPersona } from "./fork/starter-persona";
 import { archiveDue, archiveEndedTickets, rotateObservations } from "./fork/storage/ticket-archive";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
@@ -5205,6 +5206,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           forkArchiveAfterDays(this.#store.sharedRoot),
         );
         const rotated = rotateObservations(openbotRoot);
+        // Fork (item 5.1): spilled chat answers stay a week.
+        pruneSpills(dirname(this.#store.automationRoot));
         if (archived > 0 || rotated)
           logger.info(`Fork archive: ${archived} ticket(s)${rotated ? ", observation log" : ""}.`);
       }
@@ -5334,9 +5337,17 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
-  shapeChatAnswer(agentId: string, text: string): string {
-    if (forkRoleOf(this.#store.sharedRoot, agentId) !== "router") return text;
-    return limitWords(text, forkChatMaxWords(this.#store.sharedRoot)).text;
+  shapeChatAnswer(agentId: string, text: string): { text: string; spill?: SpillFile } {
+    if (forkRoleOf(this.#store.sharedRoot, agentId) !== "router") return { text };
+    const maxWords = forkChatMaxWords(this.#store.sharedRoot);
+    if (!limitWords(text, maxWords).cut) return { text };
+    // Fork (item 5.1): the full answer goes to the chat as a file; without one, the app keeps it.
+    try {
+      const spill = writeSpill(dirname(this.#store.automationRoot), agentId, text);
+      return { text: limitWords(text, maxWords, SPILL_NOTE).text, spill };
+    } catch {
+      return { text: limitWords(text, maxWords).text };
+    }
   }
 
   /**
