@@ -104,6 +104,8 @@ export interface MessagingAgents {
   deleteAgent(agentId: string): Effect.Effect<void, AgentLifecycleFailed>;
   /** The agents and group chats that the sidebar can assign to a section. */
   sidebarChatIds(): ReadonlySet<string>;
+  /** Fork: the host's reply rule for an agent's answer in a chat channel (`fork/reply-rules.ts`). */
+  shapeAnswer?(agentId: string, text: string): string;
 }
 
 export interface MessagingServiceOptions {
@@ -1502,7 +1504,11 @@ export class MessagingService {
       return;
     }
     this.#targets.delete(key);
-    const final = finalPost(activity, this.#threads.awaitsTeammate(activity.link.linkId));
+    const posted = finalPost(activity, this.#threads.awaitsTeammate(activity.link.linkId));
+    const final =
+      posted.answer && this.#agents.shapeAnswer
+        ? { ...posted, text: this.#agents.shapeAnswer(activity.link.agentId, posted.text) }
+        : posted;
     const ended: StatusPost = {
       connectionId: activity.link.connectionId,
       target,

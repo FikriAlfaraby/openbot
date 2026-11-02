@@ -32,3 +32,14 @@ agents:
 - The Router gets no MCP servers (no T3 Code, no Computer Use).
 - Its developer instructions carry the Router rule after its profile.
 - A role change replaces a loaded provider session, so the new tools apply at once.
+
+## Chat reply rule (item 2.7)
+
+```yaml
+chat:
+  maxWords: 100   # 20 to 1000; the default is 100
+```
+
+A Router answer in Slack, Discord or Telegram longer than `maxWords` words is cut at the end of the
+last sentence that fits, and the post adds "The full answer is in the OpenBot app." The Router's
+conversation in the app keeps the full answer. Other agents' answers are not changed.

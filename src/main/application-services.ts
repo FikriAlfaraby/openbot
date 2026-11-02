@@ -759,6 +759,7 @@ async function createMessagingServices({
       ensureDeletable: (agentId) => service.ensureAgentDeletable(agentId),
       deleteAgent: (agentId) => service.deleteAgent(agentId),
       sidebarChatIds: () => service.sidebarChatIds(),
+      shapeAnswer: (agentId, text) => service.shapeChatAnswer(agentId, text),
     },
     credentials: messagingCredentials,
     drivers: [

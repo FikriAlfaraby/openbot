@@ -28,9 +28,15 @@ const AgentId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9_-]{
 
 const AgentEntry = Schema.Struct({ role: Schema.Literals(FORK_ROLES) });
 
+const ChatSettings = Schema.Struct({
+  /** The most words of a Router reply in a chat channel (item 2.7). */
+  maxWords: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 20, maximum: 1_000 }))),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   agents: Schema.optionalKey(Schema.Record(AgentId, AgentEntry)),
+  chat: Schema.optionalKey(ChatSettings),
 });
 
 export type ForkConfigDocument = typeof ForkConfigDocument.Type;
@@ -38,9 +44,11 @@ export type ForkConfigDocument = typeof ForkConfigDocument.Type;
 /** The configuration that the host uses. */
 export interface ForkConfig {
   roles: ReadonlyMap<string, ForkRole>;
+  /** The most words of a Router chat reply; null for the default. */
+  chatMaxWords: number | null;
 }
 
-export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map() };
+export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
 
@@ -62,7 +70,7 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
   for (const [agentId, entry] of Object.entries(decoded.success.agents ?? {})) roles.set(agentId, entry.role);
   const routers = [...roles.values()].filter((role) => role === "router").length;
   if (routers > 1) return { ok: false, issue: "Only one agent can have the role router." };
-  return { ok: true, config: { roles } };
+  return { ok: true, config: { roles, chatMaxWords: decoded.success.chat?.maxWords ?? null } };
 }
 
 export interface ForkConfigState {

@@ -39,7 +39,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       conversation (live, or ended in the last day) with worker and open question, and tells it to
       send a follow-up with `ticket_assign` instead of a new ticket. (Chosen over mapping Telegram
       message ids to tickets: no change to the Telegram parser, and it works on every platform.)
-- [ ] 2.7 Reply rules held by the host for the Router in chat channels: one confirmation, then
+- [x] 2.7 Reply rules held by the host for the Router in chat channels: one confirmation, then
       quiet; at most 100 words. Tests.
 
 ## Phase 3: Executor, recovery, gate
@@ -122,3 +122,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   the same Telegram thread.
 - Pass-through skips private chats: Telegram makes a whole private chat one thread, so only a reply
   to a ticket's message can tell a follow-up from a new request (item 2.6b).
+- "One confirmation, then quiet" needs no extra host code: each Router turn posts one final answer,
+  and a turn that only delegates posts the fixed "delegated" status. The host holds the word limit.

@@ -231,7 +231,8 @@ import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
-import { forkRoleOf } from "./fork/router-policy";
+import { limitWords } from "./fork/reply-rules";
+import { forkChatMaxWords, forkRoleOf } from "./fork/router-policy";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
 import { ticketStoreFor } from "./fork/tickets/ticket-store";
@@ -5117,6 +5118,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** Removes live provider state for an execution thread before its durable rows are deleted. */
+
+  /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
+  shapeChatAnswer(agentId: string, text: string): string {
+    if (forkRoleOf(this.#store.sharedRoot, agentId) !== "router") return text;
+    return limitWords(text, forkChatMaxWords(this.#store.sharedRoot)).text;
+  }
 
   /**
    * Fork: a follow-up in a conversation that one live ticket owns goes to the ticket's worker, in the

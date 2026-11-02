@@ -6,6 +6,7 @@
 
 import { dirname } from "node:path";
 import { ForkConfigReader, type ForkRole } from "./fork-config";
+import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
 
 /** The OpenBot tools that a Router may call, by `namespace.tool`. Everything else is refused. */
 export const ROUTER_OPENBOT_TOOLS: ReadonlySet<string> = new Set([
@@ -106,16 +107,23 @@ export function filterDiscoveryForRouter<T extends { tools: readonly { name: str
 
 const readers = new Map<string, ForkConfigReader>();
 
-/**
- * The role of an agent from `fork-config.yaml` in the OpenBot folder, which is the parent of the
- * shared directory. One reader per folder, so a change of the file is read once for all callers.
- */
-export function forkRoleOf(sharedRoot: string, agentId: string): ForkRole | null {
+/** One reader per OpenBot folder (the parent of the shared directory), so a change is read once. */
+function readerFor(sharedRoot: string): ForkConfigReader {
   const root = dirname(sharedRoot);
   let reader = readers.get(root);
   if (!reader) {
     reader = new ForkConfigReader(root);
     readers.set(root, reader);
   }
-  return reader.roleOf(agentId);
+  return reader;
+}
+
+/** The role of an agent from `fork-config.yaml` in the OpenBot folder. */
+export function forkRoleOf(sharedRoot: string, agentId: string): ForkRole | null {
+  return readerFor(sharedRoot).roleOf(agentId);
+}
+
+/** The most words of a Router reply in a chat channel (item 2.7). */
+export function forkChatMaxWords(sharedRoot: string): number {
+  return readerFor(sharedRoot).current().config.chatMaxWords ?? DEFAULT_CHAT_MAX_WORDS;
 }
