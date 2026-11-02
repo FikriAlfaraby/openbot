@@ -118,6 +118,10 @@ other agent's conversation the message goes to the agent as before.
 open question, the worker's last summary (600 characters at most) and its last 5 steps. A ticket of
 another conversation is not shown. The Router's and the Watchdog's notes are left out.
 
+`/bantuan` (or `/help`) lists what a person can do in the chat: write a request, reply to answer,
+`/tiket`, `/tiket 12`, and `stop` (item 5.8). The OpenBot Telegram bot belongs to the account
+service, so OpenBot cannot set its command menu; this reply takes its place.
+
 ## Check the setup (item 5.3)
 
 ```sh

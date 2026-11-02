@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { chatCommandOf, ticketDetailReply, ticketStatusReply } from "./chat-commands";
+import { chatCommandOf, helpReply, ticketDetailReply, ticketStatusReply } from "./chat-commands";
 import { parseForkConfig } from "./fork-config";
 import { messagingThreadKey } from "./tickets/pass-through";
 import { TicketStore } from "./tickets/ticket-store";
@@ -115,5 +115,23 @@ describe("/tiket <number> (item 5.7)", () => {
       `Tiket #${other.number} tidak ada di percakapan ini.`,
     );
     expect(ticketDetailReply(store, "link-1", 999, names, "en")).toBe("Ticket #999 is not in this conversation.");
+  });
+});
+
+describe("/bantuan (item 5.8)", () => {
+  it("is the help command in both languages, also with a bot name", () => {
+    for (const text of ["/bantuan", "/help", "/HELP@OpenBotTim_bot"])
+      expect(chatCommandOf(text)).toEqual({ kind: "help" });
+    expect(chatCommandOf("/bantuan dong")).toBeNull();
+  });
+
+  it("lists the commands that the host answers", () => {
+    for (const language of ["id", "en"] as const) {
+      const text = helpReply(language);
+      expect(text).toContain("/tiket");
+      expect(text).toContain("/tiket 12");
+      expect(text).toContain("stop");
+    }
+    expect(helpReply()).toContain("Cara memakai bot ini");
   });
 });

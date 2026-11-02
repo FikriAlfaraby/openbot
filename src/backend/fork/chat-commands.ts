@@ -10,18 +10,24 @@
 // Item 5.7: `/tiket 12` (or `/tiket #12`) shows one ticket of the conversation: state, worker, the
 // open question, the worker's last summary and the last steps. A ticket of another conversation is
 // not shown, so one chat cannot read another's work.
+//
+// Item 5.8: `/bantuan` (or `/help`) lists what a person can do in the chat. The OpenBot Telegram bot
+// belongs to the account service, so the host cannot set the bot's command menu; this is the menu.
 
 import { messagingThreadKey } from "./tickets/pass-through";
 import type { Ticket, TicketState, TicketStore } from "./tickets/ticket-store";
 
-export type ChatCommand = { kind: "tickets" } | { kind: "ticket"; number: number };
+export type ChatCommand = { kind: "tickets" } | { kind: "ticket"; number: number } | { kind: "help" };
 export type CommandLanguage = "id" | "en";
 
 const COMMAND = /^\/(tiket|tickets|status)(@[A-Za-z0-9_]{1,64})?(?:\s+#?(\d{1,7}))?\s*$/iu;
 const RECENT_END_MS = 24 * 60 * 60_000;
 const MAX_LINES = 15;
 
+const HELP_COMMAND = /^\/(bantuan|help)(@[A-Za-z0-9_]{1,64})?\s*$/iu;
+
 export function chatCommandOf(text: string): ChatCommand | null {
+  if (HELP_COMMAND.test(text.trim())) return { kind: "help" };
   const match = COMMAND.exec(text.trim());
   if (!match) return null;
   return match[3] ? { kind: "ticket", number: Number(match[3]) } : { kind: "tickets" };
@@ -153,4 +159,30 @@ export function ticketDetailReply(
   ]
     .filter((part) => part !== null)
     .join("\n");
+}
+
+const HELP: Record<CommandLanguage, string> = {
+  id: [
+    "Cara memakai bot ini:",
+    "- Tulis saja permintaanmu seperti ke rekan kerja. Untuk pekerjaan besar, bot membuat tiket dan memberi kabar di sini.",
+    "- Balas pesan bot untuk menjawab pertanyaannya atau mengubah pekerjaan yang sedang jalan.",
+    "- /tiket: daftar tiket di percakapan ini.",
+    "- /tiket 12: detail tiket #12 (status, pertanyaan, ringkasan).",
+    "- stop: hentikan jawaban yang sedang ditulis bot.",
+    "- /bantuan: pesan ini.",
+  ].join("\n"),
+  en: [
+    "How to use this bot:",
+    "- Write your request as to a colleague. For larger work the bot opens a ticket and reports here.",
+    "- Reply to the bot's message to answer its question or change work in progress.",
+    "- /tiket: the tickets of this conversation.",
+    "- /tiket 12: ticket #12 in detail (state, question, summary).",
+    "- stop: stop the answer the bot is writing.",
+    "- /help: this message.",
+  ].join("\n"),
+};
+
+/** The reply to `/bantuan` (item 5.8). */
+export function helpReply(language: CommandLanguage = "id"): string {
+  return HELP[language];
 }

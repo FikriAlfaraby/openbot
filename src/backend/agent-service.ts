@@ -233,7 +233,7 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
-import { chatCommandOf, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
+import { chatCommandOf, helpReply, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
 import type { DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
@@ -5373,6 +5373,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       const store = ticketStoreFor(dirname(this.#store.automationRoot));
       const language = forkCommandLanguage(this.#store.sharedRoot);
       const name = (id: string) => names.get(id) ?? null;
+      if (command.kind === "help") return helpReply(language);
       return command.kind === "ticket"
         ? ticketDetailReply(store, link.linkId, command.number, name, language)
         : ticketStatusReply(store, link.linkId, name, language);

@@ -130,6 +130,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - [x] 5.7 `/tiket <number>` (follow-up of 5.2): the list told the state, but the result or the
       reason still needed a Router turn. The host now shows one ticket's question, summary and last
       steps, only for tickets of the same conversation (`ticketDetailReply`).
+- [x] 5.8 `/bantuan` and `/help` in the Router's chat (product need: a non-IT team cannot guess the
+      commands, and the host cannot set the Telegram bot's command menu, which the account service
+      owns). The host lists what a person can do (`helpReply`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -259,3 +262,6 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
   (`/opt/OpenBot`) has no `bun`. Fixed in item 5.4 with `openbot doctor`.
 - Item 5.4: upstream has no tests for `ServerMode`; the route's answer format and the doctor on a
   real folder are tested, and the CLI was run against a fake control socket.
+- Item 5.8: the OpenBot Telegram bot's token is in the account service (`telegramApp`), so the host
+  cannot call `setMyCommands`; `/start` is the account service's link code and stays upstream's.
+
