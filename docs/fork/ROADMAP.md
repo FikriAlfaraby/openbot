@@ -33,8 +33,10 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       a migration). Tests.
 - [x] 2.5 Router tools: `ticket_create`, `ticket_assign`, `ticket_list`, `ticket_close`; worker
       tools: `ticket_report` (state + summary + `human_action`). Tests.
-- [ ] 2.6 Thread subscription: a follow-up in the same Telegram thread or reply chain goes straight
+- [x] 2.6 Thread subscription: a follow-up in the same Telegram thread or reply chain goes straight
       to the subscribed worker's ticket (pass-through); the Router still sees it. Tests.
+- [ ] 2.6b Private-chat follow-ups: record the Telegram message ids of the Router's posts for a
+      ticket, and pass a reply to one of them through to that ticket's worker.
 - [ ] 2.7 Reply rules held by the host for the Router in chat channels: one confirmation, then
       quiet; at most 100 words. Tests.
 
@@ -116,3 +118,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - `ticket_assign` creates the worker's side thread on the host and queues the brief there with
   `expectsReply`, so the worker's answer returns to the Router and, through `messagingReturn`, to
   the same Telegram thread.
+- Pass-through skips private chats: Telegram makes a whole private chat one thread, so only a reply
+  to a ticket's message can tell a follow-up from a new request (item 2.6b).

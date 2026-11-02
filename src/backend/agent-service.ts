@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { dirname } from "node:path";
 import { agentProviderDescriptor, customAgentIdOfModel } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { developmentStartingModel } from "@openbot/contracts/development-defaults";
@@ -230,12 +231,16 @@ import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
+import { forkRoleOf } from "./fork/router-policy";
+import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
+import { ticketStoreFor } from "./fork/tickets/ticket-store";
 import type { HostMemory } from "./host-memory";
 import type { MailboxStore } from "./mailbox-store";
 import { toMcpOperationError } from "./mcp-effects";
 import type { McpSignInOpener } from "./mcp-oauth-provider";
 import { McpServerStore } from "./mcp-server-store";
-import { MessagingThreads, toMessagingThreadFailed } from "./messaging/messaging-threads";
+import type { MessagingLink } from "./messaging/messaging-store";
+import { type MessagingReceiveInput, MessagingThreads, toMessagingThreadFailed } from "./messaging/messaging-threads";
 import type { PasswordVault } from "./password-vault";
 import { decodeRecordResponse, getString } from "./protocol";
 import { NO_PROVIDER_CREDENTIALS, type ProviderClientContext } from "./provider-drivers";
@@ -1225,6 +1230,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         if (!agent || !this.#reportsCompactions(agentId)) return null;
         return this.#store.database.activeProviderSession(threadId, agent.provider)?.externalSessionId ?? null;
       },
+      passThrough: (agentId, link, input) => this.#ticketPassThrough(agentId, link, input),
     });
     this.#memoryHold = new MemoryHold({
       memory: hostMemory,
@@ -5102,6 +5108,48 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** Removes live provider state for an execution thread before its durable rows are deleted. */
+
+  /**
+   * Fork: a follow-up in a conversation that one live ticket owns goes to the ticket's worker, in the
+   * ticket's side thread, as from the Router; the answer returns through the Router. Any failure
+   * leaves the message to the Router, as before (`src/backend/fork/tickets/pass-through.ts`).
+   */
+  #ticketPassThrough(agentId: string, link: MessagingLink, input: MessagingReceiveInput): Effect.Effect<string | null> {
+    return Effect.gen({ self: this }, function* () {
+      const store = ticketStoreFor(dirname(this.#store.automationRoot));
+      const ticket = passThroughTicket(
+        {
+          store,
+          roleOf: (id) => forkRoleOf(this.#store.sharedRoot, id),
+          taskOpen: (taskId) => this.#tasks.threadId(taskId) !== null,
+        },
+        { routerAgentId: agentId, linkId: link.linkId, isDirect: link.isDirect },
+      );
+      if (!ticket?.assigneeAgentId || !ticket.taskId) return null;
+      const receipt = yield* this.#mailbox.enqueue({
+        sender: { kind: "agent", agentId },
+        recipientAgentIds: [ticket.assigneeAgentId],
+        text: passThroughText(ticket, input.origin.authorName, input.text || "(The message has no text.)"),
+        sourcePaths: input.sourcePaths,
+        replyToMessageId: null,
+        expectsReply: true,
+        messagingReturn: { ...input.origin, linkId: link.linkId },
+        taskId: ticket.taskId,
+        idempotencyKey: input.idempotencyKey,
+      });
+      const delivery = receipt.deliveries[0];
+      if (!delivery) return null;
+      if (ticket.state === "awaiting_human")
+        store.transition(ticket.ticketId, "working", { actor: `person:${input.origin.authorId}`, note: "answered" });
+      else store.note(ticket.ticketId, `person:${input.origin.authorId}`, "follow-up passed to the worker");
+      this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+      this.#drain.scheduleDrain(delivery.recipientAgentId);
+      return delivery.id;
+    }).pipe(
+      Effect.catch(() => Effect.succeed(null)),
+      Effect.catchDefect(() => Effect.succeed(null)),
+    );
+  }
 
   readonly #forgetExecutionThread = Effect.fn("AgentService.forgetExecutionThread")(function* (
     this: AgentService,

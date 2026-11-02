@@ -43,3 +43,20 @@ the live tickets of a thread, so that a follow-up reaches the ticket's worker (i
 | `ticket_read` | Router, Watchdog; the assignee | One ticket with its last 20 events and threads. |
 | `ticket_report` | the assignee | `working`, `review`, `done`, `blocked`, `failed`, or `awaiting_human` with `humanAction`. |
 | `ticket_close` | Router | `done`, `failed` or `cancelled`, with a reason. |
+
+## Pass-through (item 2.6)
+
+A follow-up in a conversation that a live ticket owns goes straight to the ticket's worker, in the
+ticket's side thread, with no Router turn (`src/backend/fork/tickets/pass-through.ts`, hook
+`passThrough` in `messaging-threads.ts`). The worker's answer still returns through the Router.
+
+It applies only when all hold:
+
+- the conversation belongs to the agent with the role `router`;
+- it is not a private chat: Telegram makes a whole private chat one thread, so there a follow-up and
+  a new request look the same and the Router decides (it can use `ticket_assign` for a follow-up);
+- exactly one ticket of the conversation is live (`working`, `awaiting_human`, `review`, `blocked`)
+  with a worker and an open side thread.
+
+A person's message to a ticket in `awaiting_human` moves it back to `working`. Any failure leaves
+the message to the Router, as before.

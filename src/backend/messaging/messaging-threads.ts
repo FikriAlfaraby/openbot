@@ -128,6 +128,12 @@ export interface MessagingThreadsHooks {
    * Null when a compaction could drop the guidance with no signal, so each prompt repeats it.
    */
   contextSession(agentId: string, threadId: string): string | null;
+  /**
+   * Fork: a follow-up that a live ticket owns goes straight to its worker
+   * (`src/backend/fork/tickets/pass-through.ts`). Returns the worker's delivery id, or null when the
+   * agent of the link handles the message as before.
+   */
+  passThrough?(agentId: string, link: MessagingLink, input: MessagingReceiveInput): Effect.Effect<string | null>;
 }
 
 /**
@@ -436,6 +442,11 @@ export class MessagingThreads {
       (context) => this.#mailbox.messagingOrigin(context.delivery.id)?.authorId === input.origin.authorId,
     );
     if (pending.length >= AGENT_QUEUE_LIMIT || byAuthor.length >= AUTHOR_QUEUE_LIMIT) return { status: "busy", link };
+    const passed = this.#hooks.passThrough ? yield* this.#hooks.passThrough(agentId, link, input) : null;
+    if (passed) {
+      yield* threadsStep(() => this.store.touch(link.linkId));
+      return { status: "queued", link, deliveryId: passed, waiting: false };
+    }
     const waiting = this.#hooks.busy(agentId);
     const receipt = yield* this.#mailbox
       .enqueue({
