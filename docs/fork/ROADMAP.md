@@ -44,7 +44,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 ## Phase 3: Executor, recovery, gate
 
-- [ ] 3.1 T3 Code executor, part 1: `scripts/fork/t3-exec.ts` wraps `t3 thread start/send/show
+- [x] 3.1 T3 Code executor, part 1: `scripts/fork/t3-exec.ts` wraps `t3 thread start/send/show
       --wait --json` (base branch → `--worktree`), with a fake `t3` for tests; exit 0 → `review` or
       `done`, 1 → `failed`, 2 → `awaiting_human`. Notes on the user that runs `t3` vs `openbot`.
 - [ ] 3.1b T3 Code executor, part 2: the ticket keeps its T3 thread id; a follow-up on the ticket
@@ -127,3 +127,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   to a ticket's message can tell a follow-up from a new request (item 2.6b).
 - "One confirmation, then quiet" needs no extra host code: each Router turn posts one final answer,
   and a turn that only delegates posts the fixed "delegated" status. The host holds the word limit.
+- T3's CLI: exit 0 completed, 2 waits for a person, 1 failed; `--wait --json` always prints
+  `{ threadId, runId, status, reply, error }`; `--` ends the flags (`docs/fork/t3.md`).
+- The packaged app has no `scripts/` folder, so the T3 executor is backend code
+  (`src/backend/fork/t3/t3-cli.ts`), called by OpenBot tools in item 3.1b, not a script.
