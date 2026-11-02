@@ -77,6 +77,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [ ] P.5 Agent templates and imports carry `persona.yaml` (`src/main/agent-template-service.ts`).
 - [ ] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
       overrides changed after an upstream sync.
+- [ ] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
+      description, tone "follow the person's language") when it is created, so every bot has a
+      persona to edit; an existing `persona.yaml` is never replaced. Tests.
 - [ ] P.7 Role defaults from `fork-config.yaml` (item 2.2): a `router` gets the Router persona
       template and a light model by default, a `worker` the strongest model.
 
