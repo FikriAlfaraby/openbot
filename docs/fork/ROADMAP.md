@@ -74,7 +74,10 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       edit is refused with the field. Tests.
 - [x] P.4 Fresh persona on every turn: check that a persona change reaches running Claude, Codex
       and ACP sessions (fingerprint restart or a turn block like the memories); fix the gap. Tests.
-- [ ] P.5 Agent templates and imports carry `persona.yaml` (`src/main/agent-template-service.ts`).
+- [x] P.5 Agent imports carry `persona.yaml`: an instance transfer exports every workspace file
+      outside `.openbot` and the managed skill folders, so `persona.yaml` and `.openbot-persona/`
+      travel; a test guards it. Link-only templates do not: their snapshot is a contract that the
+      account service on openbot.run checks, which the fork cannot change (see Findings).
 - [ ] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
       overrides changed after an upstream sync.
 - [ ] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
@@ -155,3 +158,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   only when it is not loaded, so a persona change waited for the next load. ThreadLifecycle now hashes
   the fork inputs at each turn and, on a change, unloads the agent's sessions, as upstream does for a
   profile change; the next turn resumes with the new instructions.
+- Agent templates (`agent-template-service.ts`) go through the account service as an
+  `AgentTemplateSnapshot` that the server validates; a persona field would need that service. A
+  fork-only path would be to publish the persona as an embedded skill and turn it back into
+  `persona.yaml` on install. Not done: for a personal fork, an instance transfer carries it.

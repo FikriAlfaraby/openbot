@@ -982,8 +982,11 @@ const workspaceFiles = Effect.fn("InstanceTransfer.workspaceFiles")(function* (
   return yield* walk(root, isWorkspaceSkipped);
 });
 
-/** OpenBot's own workspace folders: an export leaves them out, and an import never writes them. */
-function isWorkspaceSkipped(name: string): boolean {
+/**
+ * OpenBot's own workspace folders: an export leaves them out, and an import never writes them.
+ * Exported for the fork's check that `persona.yaml` and its history travel (docs/fork/persona.md).
+ */
+export function isWorkspaceSkipped(name: string): boolean {
   // A disk that ignores case writes `.OpenBot/` into `.openbot/`, so the check ignores case too.
   const lower = name.toLowerCase();
   return WORKSPACE_SKIPPED.some((skipped) => lower === skipped || lower.startsWith(`${skipped}/`));
