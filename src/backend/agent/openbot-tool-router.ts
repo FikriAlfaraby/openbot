@@ -40,6 +40,7 @@ import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
+import { routingSummaryOf } from "../fork/persona-summary";
 import {
   filterDiscoveryForRouter,
   forkGateOf,
@@ -944,7 +945,11 @@ export class OpenBotToolRouter {
             id: agent.id,
             name: agent.name,
             title: agent.title,
-            description: listedDescription(agent.description),
+            // Fork: the persona's routing summary, when it has one, and the role (items P.1, 2.2).
+            description: routingSummaryOf(agent.workspacePath) ?? listedDescription(agent.description),
+            ...(forkRoleOf(this.#store.sharedRoot, agent.id)
+              ? { role: forkRoleOf(this.#store.sharedRoot, agent.id) }
+              : {}),
             status: working ? "working" : queuedMessages > 0 ? "queued" : "ready",
             queuedMessages,
             ...(working && startedAt !== null ? { turnStartedAt: new Date(startedAt).toISOString() } : {}),

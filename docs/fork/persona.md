@@ -67,5 +67,5 @@ the persona overrode it; then compare the new default with your override.
 ## Not in phase 1
 
 - No settings UI or IPC; edit the files directly (the agent can edit its own `persona.yaml`).
-- `list_agents` still uses `description`; `routing_summary` is used by the Router in phase 2.
+- `list_agents` shows `routing_summary` in place of the description when the persona has one (item P.1).
 - Agent templates and imports do not carry `persona.yaml` yet.

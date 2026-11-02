@@ -64,7 +64,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 ## Phase 2b: Persona backend v2
 
-- [ ] P.1 `list_agents` and the delegation prompt use `routing_summary` when the persona has one,
+- [x] P.1 `list_agents` and the delegation prompt use `routing_summary` when the persona has one,
       instead of the description cut at 300 characters. Tests.
 - [ ] P.2 Channel output norms in the persona (article §4.2): `channels.chat` (short, at most N
       words, only decisions) and `channels.async` (GitHub, email, documents: structured, complete);
@@ -146,3 +146,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   `telegram-updates.ts`, so the prototype's "bots as inferred candidates" does not arise there.
 - The gate's `observe` records only; the prototype's observe also runs the assessment and records
   its decision. A model assessment of observed messages could come later, at a token cost.
+- `list_agents` now shows the persona's `routing_summary` in place of the cut description, and the
+  agent's fork role. The section-teammates block keeps name and title only, to keep its prompt cache.
