@@ -19,7 +19,7 @@ import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
-import { forkRoleOf, ROUTER_CODEX_CONFIG } from "../fork/router-policy";
+import { forkMcpServersFor, forkRoleOf, ROUTER_CODEX_CONFIG } from "../fork/router-policy";
 import { type HomeSkill, listHomeSkills, skillFolderNames } from "../home-skills";
 import type { MailboxStore } from "../mailbox-store";
 import type { McpOperationError } from "../mcp-effects";
@@ -628,7 +628,8 @@ export class ThreadLifecycle {
       approvalPolicy: "on-request",
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
-      ...this.#forkRoleParam(agent),
+      ...this.#forkRoleParam(agent, client),
+      ...this.#forkMcpParam(agent, client),
       ...this.#computerUseParam(agent, client),
       ...this.#mcpAgentParam(agent, client),
       ...this.#instructions(
@@ -1051,11 +1052,29 @@ export class ThreadLifecycle {
   #agentMcpServers(agent: AgentSummary): readonly McpServerConfig[] {
     // Fork: a Router gets no MCP servers; it routes work and does none (docs/fork/notes/runtime.md).
     if (forkRoleOf(this.#store.sharedRoot, agent.id) === "router") return [];
-    return agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
+    return forkMcpServersFor(
+      this.#store.sharedRoot,
+      agent.id,
+      agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent)),
+    );
+  }
+
+  /**
+   * Fork: the MCP server names that the fork allows, for the clients that read the servers
+   * themselves (`src/backend/fork/fork-mcp.ts`). Absent when the fork changes nothing.
+   */
+  #forkMcpParam(agent: AgentSummary, client: AgentClient): { forkMcpServers?: string[] } {
+    // Codex gets its servers from `codexConfigEffect`, which reads the fork's list already.
+    if (client.provider === "codex") return {};
+    const all = agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
+    const allowed = this.#agentMcpServers(agent);
+    return allowed.length === all.length ? {} : { forkMcpServers: allowed.map((server) => server.name) };
   }
 
   /** Fork: tells the provider client that this agent is the Router, which gets no work tools. */
-  #forkRoleParam(agent: AgentSummary): { forkRole?: "router" } {
+  #forkRoleParam(agent: AgentSummary, client: AgentClient): { forkRole?: "router" } {
+    // Codex gets the Router's limits through `ROUTER_CODEX_CONFIG`, like other settings, not a param.
+    if (client.provider === "codex") return {};
     return forkRoleOf(this.#store.sharedRoot, agent.id) === "router" ? { forkRole: "router" } : {};
   }
 
@@ -1253,7 +1272,8 @@ export class ThreadLifecycle {
       approvalPolicy: "on-request",
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
-      ...this.#forkRoleParam(agent),
+      ...this.#forkRoleParam(agent, client),
+      ...this.#forkMcpParam(agent, client),
       ...this.#computerUseParam(agent, client),
       ...this.#mcpAgentParam(agent, client),
       ...this.#instructions(

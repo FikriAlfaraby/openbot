@@ -42,6 +42,7 @@ import { elicitationOptions, elicitationValue, secretElicitationField } from "./
 import { type AgentProvider, type DiagnosticOrigin, ProviderTurnActiveError } from "./agent-client";
 import type { AgentCliInfo } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
+import { forkMcpNames, withForkMcp } from "./fork/fork-mcp";
 import { IdleThreadPool } from "./idle-thread-pool";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
 import {
@@ -1506,7 +1507,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
               providerResult(
                 yield* Effect.result(
                   usableMcpServers(
-                    agentMcpServers(this.options.mcpServers?.() ?? [], computerUse),
+                    withForkMcp(agentMcpServers(this.options.mcpServers?.() ?? [], computerUse), forkMcpNames(params)),
                     this.options.mcpToolRuntimes?.(),
                     this.options.mcpEndpoint,
                     agentId,

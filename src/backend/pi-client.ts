@@ -12,6 +12,7 @@ import { type AgentClient, type DiagnosticOrigin, MissingPiSessionError, Request
 import { type AgentCliInfo, cliPathEnvironment, cliSpawnTarget } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
 import { isMissingFileError } from "./file-errors";
+import { forkMcpNames, withForkMcp } from "./fork/fork-mcp";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
 import {
   agentMcpServers,
@@ -495,7 +496,10 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     return yield* Effect.gen({ self: this }, function* () {
       const handoff = claudeMcpServers(
         yield* usableMcpServers(
-          agentMcpServers(this.options.mcpServers?.() ?? [], computerUseParam(params)),
+          withForkMcp(
+            agentMcpServers(this.options.mcpServers?.() ?? [], computerUseParam(params)),
+            forkMcpNames(params),
+          ),
           this.options.mcpToolRuntimes?.(),
           this.options.mcpEndpoint,
           mcpAgentParam(params),

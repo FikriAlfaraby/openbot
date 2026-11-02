@@ -49,11 +49,17 @@ const T3Settings = Schema.Struct({
   waitSeconds: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 10, maximum: 3_600 }))),
 });
 
+/** Which agents get an MCP server (item 3.1d). The key is the server's name in OpenBot. */
+const McpAccess = Schema.Struct({
+  agents: Schema.Array(AgentId).check(Schema.isMaxLength(64)),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   agents: Schema.optionalKey(Schema.Record(AgentId, AgentEntry)),
   chat: Schema.optionalKey(ChatSettings),
   t3: Schema.optionalKey(T3Settings),
+  mcp: Schema.optionalKey(Schema.Record(PlainText(128), McpAccess)),
 });
 
 export type ForkT3Settings = typeof T3Settings.Type;
@@ -67,9 +73,11 @@ export interface ForkConfig {
   chatMaxWords: number | null;
   /** T3 Code settings; null when the file names none. */
   t3: ForkT3Settings | null;
+  /** The agents of each MCP server that the file limits, by server name. Other servers go to all. */
+  mcpAgents: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null, t3: null };
+export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null, t3: null, mcpAgents: new Map() };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
 
@@ -93,7 +101,14 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
   if (routers > 1) return { ok: false, issue: "Only one agent can have the role router." };
   return {
     ok: true,
-    config: { roles, chatMaxWords: decoded.success.chat?.maxWords ?? null, t3: decoded.success.t3 ?? null },
+    config: {
+      roles,
+      chatMaxWords: decoded.success.chat?.maxWords ?? null,
+      t3: decoded.success.t3 ?? null,
+      mcpAgents: new Map(
+        Object.entries(decoded.success.mcp ?? {}).map(([name, access]) => [name, new Set(access.agents)]),
+      ),
+    },
   };
 }
 

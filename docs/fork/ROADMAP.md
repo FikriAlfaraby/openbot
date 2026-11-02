@@ -52,7 +52,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       use it for all coding work; T3 worktree cleanup and worktree location in `docs/fork/t3.md`.
 - [x] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
       working tickets; a T3 question (exit 2) reaches the person through the Router.
-- [ ] 3.1d T3 Code over MCP (owner's wish): connect T3's `/mcp` on `localhost` to the Coder only,
+- [x] 3.1d T3 Code over MCP (owner's wish): connect T3's `/mcp` on `localhost` to the Coder only,
       and finish the OAuth approval in OpenBot's own browser on the VPS, where the `localhost`
       redirect works; document it in `docs/fork/t3.md`. The CLI path of 3.1 stays the fallback.
 - [ ] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
@@ -122,6 +122,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   file. An invalid edit keeps the last valid roles (`src/backend/fork/fork-config.ts`).
 - Tools of external MCP servers go from the provider to the server directly, not through
   `OpenBotToolRouter`; the Router is kept from them by giving it no MCP servers.
+- Fixed in item 3.1d: Claude, ACP, Pi and Muse read the MCP servers themselves, so the Router's
+  "no MCP servers" of item 2.3 held only for Codex. ThreadLifecycle now sends the allowed names as
+  `forkMcpServers` (not to Codex, which gets them in its config), and each client keeps only those.
 - `ticket_assign` creates the worker's side thread on the host and queues the brief there with
   `expectsReply`, so the worker's answer returns to the Router and, through `messagingReturn`, to
   the same Telegram thread.

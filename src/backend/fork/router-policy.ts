@@ -123,6 +123,20 @@ export function forkRoleOf(sharedRoot: string, agentId: string): ForkRole | null
   return readerFor(sharedRoot).roleOf(agentId);
 }
 
+/**
+ * The MCP servers that an agent gets: a server that `fork-config.yaml` limits goes only to the
+ * agents it names (item 3.1d), such as T3 Code's MCP server to the Coder. Others go to every agent.
+ */
+export function forkMcpServersFor<T extends { name: string }>(
+  sharedRoot: string,
+  agentId: string,
+  servers: readonly T[],
+): readonly T[] {
+  const limits = readerFor(sharedRoot).current().config.mcpAgents;
+  if (limits.size === 0) return servers;
+  return servers.filter((server) => limits.get(server.name)?.has(agentId) ?? true);
+}
+
 /** The T3 Code settings of `fork-config.yaml`, or null (item 3.1b). */
 export function forkT3Settings(sharedRoot: string): ForkT3Settings | null {
   return readerFor(sharedRoot).current().config.t3;

@@ -88,6 +88,7 @@ import {
   isClaudeTaskNotification,
 } from "./conversation-snapshots";
 import { runCauseEffect } from "./effect-boundary";
+import { forkMcpNames, withForkMcp } from "./fork/fork-mcp";
 import { ROUTER_CLAUDE_DISALLOWED_TOOLS } from "./fork/router-policy";
 import { IdleThreadPool } from "./idle-thread-pool";
 import {
@@ -183,6 +184,8 @@ interface ThreadConfig {
   agentId: string | null;
   /** Fork: the Router gets no shell, file or web tools (`src/backend/fork/router-policy.ts`). */
   router: boolean;
+  /** Fork: the MCP server names that the fork allows, or null for all (`fork-mcp.ts`). */
+  forkMcpServers: string[] | null;
 }
 
 interface ActiveTurn {
@@ -861,7 +864,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       ? null
       : claudeMcpServers(
           yield* usableMcpServers(
-            agentMcpServers(this.#mcpServers(), config.computerUse),
+            withForkMcp(agentMcpServers(this.#mcpServers(), config.computerUse), config.forkMcpServers),
             this.#mcpToolRuntimes?.(),
             this.#mcpEndpoint,
             config.agentId,
@@ -2218,6 +2221,7 @@ function readThreadConfig(params: unknown): ThreadConfig {
         : [],
     agentId: mcpAgentParam(params),
     router: isRecord(params) && params.forkRole === "router",
+    forkMcpServers: forkMcpNames(params),
   };
 }
 

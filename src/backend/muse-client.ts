@@ -16,6 +16,7 @@ import { secretElicitationField } from "./agent/prompts";
 import { type AgentClient, type AgentProvider, type DiagnosticOrigin, RequestTimeoutError } from "./agent-client";
 import { type AgentCliInfo, cliPathEnvironment, cliSpawnTarget } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
+import { forkMcpNames, withForkMcp } from "./fork/fork-mcp";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
 import {
   acpMcpServers,
@@ -512,9 +513,12 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
       .pipe(toProviderClientOperationError);
     const setup = Effect.gen({ self: this }, function* () {
       const resolved = yield* usableMcpServers(
-        agentMcpServers(
-          this.#options.profileGeneration ? [] : (this.#options.mcpServers?.() ?? []),
-          computerUseParam(params),
+        withForkMcp(
+          agentMcpServers(
+            this.#options.profileGeneration ? [] : (this.#options.mcpServers?.() ?? []),
+            computerUseParam(params),
+          ),
+          forkMcpNames(params),
         ),
         this.#options.mcpToolRuntimes?.(),
         this.#options.mcpEndpoint,
