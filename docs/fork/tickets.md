@@ -60,3 +60,10 @@ It applies only when all hold:
 
 A person's message to a ticket in `awaiting_human` moves it back to `working`. Any failure leaves
 the message to the Router, as before.
+
+## Ticket context for the Router (item 2.6b)
+
+In every messaging turn of the Router, the prompt lists the tickets of that conversation (live, or
+ended in the last 24 hours; at most 10) with their worker and open question, just before the
+message (`src/backend/fork/tickets/ticket-context.ts`). In a private chat, where pass-through does
+not apply, the Router sends a follow-up to the ticket's worker with `ticket_assign`.

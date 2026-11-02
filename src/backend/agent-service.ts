@@ -233,6 +233,7 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { forkRoleOf } from "./fork/router-policy";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
+import { ticketContextBlock } from "./fork/tickets/ticket-context";
 import { ticketStoreFor } from "./fork/tickets/ticket-store";
 import type { HostMemory } from "./host-memory";
 import type { MailboxStore } from "./mailbox-store";
@@ -1231,6 +1232,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         return this.#store.database.activeProviderSession(threadId, agent.provider)?.externalSessionId ?? null;
       },
       passThrough: (agentId, link, input) => this.#ticketPassThrough(agentId, link, input),
+      ticketContext: (link) =>
+        forkRoleOf(this.#store.sharedRoot, link.agentId) === "router"
+          ? ticketContextBlock(
+              ticketStoreFor(dirname(this.#store.automationRoot)),
+              link.linkId,
+              (id) => this.#store.list().find((agent) => agent.id === id)?.name ?? null,
+            )
+          : null,
     });
     this.#memoryHold = new MemoryHold({
       memory: hostMemory,

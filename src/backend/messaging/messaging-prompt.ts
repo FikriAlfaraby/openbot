@@ -29,6 +29,8 @@ export interface MessagingPromptInput {
    * conversation, so the prompt names them instead of repeating them.
    */
   guidanceRead: boolean;
+  /** Fork: the Router's live tickets of this conversation, as a prompt block (`ticket-context.ts`). */
+  ticketContext?: string | null;
 }
 
 /** How each platform names itself, a workspace, and a conversation in a channel. */
@@ -73,6 +75,7 @@ export function messagingPromptText(input: MessagingPromptInput): string {
       "--- the message this one replies to (context) ---",
       `[${input.replyTo.sentAt}] ${input.replyTo.authorName}: ${input.replyTo.text.slice(0, REPLY_CHARACTERS)}`,
     );
+  if (input.ticketContext) lines.push(input.ticketContext);
   lines.push("--- message ---", input.text || "(The message has no text.)");
   if (input.skippedFiles.length) lines.push(`Files that were not given to you: ${input.skippedFiles.join(", ")}.`);
   return lines.filter((line) => line !== null).join("\n");

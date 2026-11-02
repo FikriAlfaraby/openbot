@@ -134,6 +134,8 @@ export interface MessagingThreadsHooks {
    * agent of the link handles the message as before.
    */
   passThrough?(agentId: string, link: MessagingLink, input: MessagingReceiveInput): Effect.Effect<string | null>;
+  /** Fork: the live tickets of the conversation, for the Router's prompt, or null. */
+  ticketContext?(link: MessagingLink): string | null;
 }
 
 /**
@@ -510,6 +512,7 @@ export class MessagingThreads {
       replyTo: origin.replyTo ?? null,
       skippedFiles: prompt.skippedFiles,
       memories,
+      ticketContext: this.#hooks.ticketContext?.(link) ?? null,
     };
     const memoryKey = JSON.stringify(memories.map((memory) => [memory.id, memory.text]));
     const guided = this.#guided.get(link.linkId);
