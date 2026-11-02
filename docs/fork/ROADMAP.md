@@ -40,15 +40,38 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 ## Phase 3: Executor, recovery, gate
 
-- [ ] 3.1 Coder executor through T3 Code: a skill and a wrapper for `t3 thread start/send --wait
-      --json`, one T3 thread and worktree per ticket; exit 0 → `review`/`done`, 1 → `failed`,
-      2 → `awaiting_human`. Check the user that runs `t3`.
+- [ ] 3.1 T3 Code executor, part 1: `scripts/fork/t3-exec.ts` wraps `t3 thread start/send/show
+      --wait --json` (base branch → `--worktree`), with a fake `t3` for tests; exit 0 → `review` or
+      `done`, 1 → `failed`, 2 → `awaiting_human`. Notes on the user that runs `t3` vs `openbot`.
+- [ ] 3.1b T3 Code executor, part 2: the ticket keeps its T3 thread id; a follow-up on the ticket
+      goes to the same T3 thread (`t3 thread send`); the Coder persona and a skill tell the Coder to
+      use it for all coding work; T3 worktree cleanup and worktree location in `docs/fork/t3.md`.
+- [ ] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
+      working tickets; a T3 question (exit 2) reaches the person through the Router.
 - [ ] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
       stops, and can resume or close it.
 - [ ] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
       user, bot messages as inferred candidates. Tests.
 - [ ] 3.4 Mandate: scope and strength recorded on each ticket, checked by the host before risky
       actions and before a ticket resumes.
+
+## Phase 2b: Persona backend v2
+
+- [ ] P.1 `list_agents` and the delegation prompt use `routing_summary` when the persona has one,
+      instead of the description cut at 300 characters. Tests.
+- [ ] P.2 Channel output norms in the persona (article §4.2): `channels.chat` (short, at most N
+      words, only decisions) and `channels.async` (GitHub, email, documents: structured, complete);
+      the prompt names the rule for the channel of the turn. Tests.
+- [ ] P.3 The agent reads and edits its persona through OpenBot tools (`persona_read`,
+      `persona_update` with validation and a version), not only by editing the file; an invalid
+      edit is refused with the field. Tests.
+- [ ] P.4 Fresh persona on every turn: check that a persona change reaches running Claude, Codex
+      and ACP sessions (fingerprint restart or a turn block like the memories); fix the gap. Tests.
+- [ ] P.5 Agent templates and imports carry `persona.yaml` (`src/main/agent-template-service.ts`).
+- [ ] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
+      overrides changed after an upstream sync.
+- [ ] P.7 Role defaults from `fork-config.yaml` (item 2.2): a `router` gets the Router persona
+      template and a light model by default, a `worker` the strongest model.
 
 ## Phase 4: Watchdog, budget, resources
 
