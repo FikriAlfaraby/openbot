@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { dirname } from "node:path";
 import { chatVisualItemType } from "@openbot/contracts/chat-visual";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
@@ -40,6 +41,8 @@ import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
 import { filterDiscoveryForRouter, forkRoleOf, routerMayUse, routerRefusal } from "../fork/router-policy";
+import { ticketStoreFor } from "../fork/tickets/ticket-store";
+import { handleTicketTool, isTicketTool, type TicketToolPorts } from "../fork/tickets/ticket-tools";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
@@ -756,6 +759,17 @@ export class OpenBotToolRouter {
   ) {
     const senderAgentId = this.#conversation.agentForThread(params.threadId);
     if (!senderAgentId) throw new Error("The sending OpenBot agent is unknown.");
+
+    // Fork: the super agent's ticket tools.
+    if (isTicketTool(params.tool)) {
+      const outcome = yield* handleTicketTool(
+        this.#ticketPorts(params, senderAgentId),
+        params.tool,
+        params.arguments,
+        senderAgentId,
+      ).pipe(Effect.catch((cause) => Effect.fail(new ToolOperationFailed({ cause }))));
+      return outcome.ok ? openBotToolResult(outcome.value) : openBotToolFailure(outcome.error);
+    }
 
     if (LOCAL_SKILL_TOOL_DEFINITIONS.some((tool) => tool.name === params.tool)) {
       const reportFailure = (error: unknown) =>
@@ -1691,6 +1705,52 @@ export class OpenBotToolRouter {
     Effect.catchDefect((cause) => Effect.fail(new ToolOperationFailed({ cause }))),
     Effect.uninterruptible,
   );
+
+  /** Fork: what the ticket tools need from this router (src/backend/fork/tickets/ticket-tools.ts). */
+  #ticketPorts(params: DynamicToolCallParams, callerId: string): TicketToolPorts {
+    const deliveries = this.#mailbox.findDeliveriesByTurn(callerId, params.turnId);
+    const messagingReturn = deliveries
+      .map(({ delivery }) => this.#mailbox.messagingOrigin(delivery.id))
+      .find((origin) => origin !== null);
+    return {
+      store: ticketStoreFor(dirname(this.#store.automationRoot)),
+      roleOf: (agentId) => forkRoleOf(this.#store.sharedRoot, agentId),
+      agent: (agentId) => {
+        const agent = this.#hooks.listAgents().find((item) => item.id === agentId);
+        return agent && agent.hiddenAt === undefined ? { id: agent.id, name: agent.name } : null;
+      },
+      turnOrigin: () => ({
+        threadKeys: messagingReturn ? [`messaging:${messagingReturn.linkId}`] : [],
+        sourceKey: deliveries[0] ? `delivery:${deliveries[0].delivery.id}` : null,
+        source: messagingReturn ? "messaging" : "agent",
+      }),
+      taskOpen: (taskId) => this.#tasks.threadId(taskId) !== null,
+      startWorkerTask: (input) =>
+        Effect.gen({ self: this }, function* () {
+          const key = `ticket-assign:${toolCallIdempotencyKey(params)}`;
+          const earlier = this.#mailbox.deliveryForKey(key);
+          const earlierTask = earlier ? this.#mailbox.taskIdForDelivery(earlier.delivery.id) : null;
+          if (earlierTask) return { taskId: earlierTask };
+          const taskId = input.taskId ?? this.#tasks.create(input.workerAgentId, input.title, "agent").taskId;
+          const receipt = yield* this.#mailbox.enqueue({
+            sender: { kind: "agent", agentId: input.routerAgentId },
+            recipientAgentIds: [input.workerAgentId],
+            text: input.text,
+            sourcePaths: [],
+            replyToMessageId: null,
+            expectsReply: true,
+            ...(messagingReturn ? { messagingReturn } : {}),
+            taskId,
+            idempotencyKey: key,
+          });
+          for (const delivery of receipt.deliveries) {
+            this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+            this.#drain.scheduleDrain(delivery.recipientAgentId);
+          }
+          return { taskId };
+        }),
+    };
+  }
 
   readonly #sendMessage = Effect.fn("OpenBotToolRouter.sendMessage")(
     function* (

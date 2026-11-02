@@ -32,3 +32,14 @@ done ─► working   (a person's message resumes it)
 
 A ticket subscribes to threads (a Telegram thread, a pull request). `subscribers(threadKey)` gives
 the live tickets of a thread, so that a follow-up reaches the ticket's worker (item 2.6).
+
+## Tools (item 2.5)
+
+| Tool | Who | What |
+|---|---|---|
+| `ticket_create` | Router | Opens a ticket from the current request; `assignTo` assigns at once. Subscribes it to the request's messaging thread. |
+| `ticket_assign` | Router | Starts a side thread of the worker with the ticket brief; the answer returns to the Router. Again for the same worker: a follow-up in the same thread. |
+| `ticket_list` | Router, Watchdog (all); worker (own) | Newest first, with state, assignee, summary. |
+| `ticket_read` | Router, Watchdog; the assignee | One ticket with its last 20 events and threads. |
+| `ticket_report` | the assignee | `working`, `review`, `done`, `blocked`, `failed`, or `awaiting_human` with `humanAction`. |
+| `ticket_close` | Router | `done`, `failed` or `cancelled`, with a reason. |

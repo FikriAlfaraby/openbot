@@ -31,7 +31,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       `awaiting_human`, `review`, `blocked`, `done`, `failed`, `cancelled`; an append-only event log;
       idempotent creation per source message. Storage choice in the notes of 2.1 (own SQLite file or
       a migration). Tests.
-- [ ] 2.5 Router tools: `ticket_create`, `ticket_assign`, `ticket_list`, `ticket_close`; worker
+- [x] 2.5 Router tools: `ticket_create`, `ticket_assign`, `ticket_list`, `ticket_close`; worker
       tools: `ticket_report` (state + summary + `human_action`). Tests.
 - [ ] 2.6 Thread subscription: a follow-up in the same Telegram thread or reply chain goes straight
       to the subscribed worker's ticket (pass-through); the Router still sees it. Tests.
@@ -96,6 +96,10 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   migration sequence, and a fork v50 would collide with upstream's v50 at the next sync. (Changed
   from the first plan in item 2.4.)
 
+- The six ticket tools raise the agent context baseline (`tools/agent-context/budget.json`) by 133
+  bytes of always-visible text (tool names in `tool_search`) and about 3.3 KB of searchable catalog.
+  Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature.
+
 ## Findings
 
 - T3 Code MCP accepts only OAuth; `t3 thread` on the host needs no sign-in.
@@ -109,3 +113,6 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   file. An invalid edit keeps the last valid roles (`src/backend/fork/fork-config.ts`).
 - Tools of external MCP servers go from the provider to the server directly, not through
   `OpenBotToolRouter`; the Router is kept from them by giving it no MCP servers.
+- `ticket_assign` creates the worker's side thread on the host and queues the brief there with
+  `expectsReply`, so the worker's answer returns to the Router and, through `messagingReturn`, to
+  the same Telegram thread.

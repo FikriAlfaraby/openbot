@@ -52,7 +52,7 @@ const TRANSITIONS: Record<TicketState, readonly TicketState[]> = {
   cancelled: [],
 };
 
-export const TICKET_SOURCES = ["telegram", "app", "routine", "agent", "other"] as const;
+export const TICKET_SOURCES = ["messaging", "telegram", "app", "routine", "agent", "other"] as const;
 export type TicketSource = (typeof TICKET_SOURCES)[number];
 
 export const TICKET_LIMITS = {
@@ -90,6 +90,18 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   endedAt: string | null;
+}
+
+const stores = new Map<string, TicketStore>();
+
+/** One store per user data folder for the process, opened at first use. */
+export function ticketStoreFor(userDataPath: string): TicketStore {
+  let store = stores.get(userDataPath);
+  if (!store) {
+    store = new TicketStore({ userDataPath });
+    stores.set(userDataPath, store);
+  }
+  return store;
 }
 
 export interface TicketEvent {

@@ -43,6 +43,7 @@ import {
   listWaitsToolSchema,
 } from "./agent-waits/agent-waits";
 import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
+import { TICKET_TOOL_DEFINITIONS } from "./fork/tickets/ticket-tools";
 import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
 import {
@@ -297,6 +298,8 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   ...LOCAL_SKILL_TOOL_DEFINITIONS,
   ...ROUTINE_FLOW_TOOL_DEFINITIONS,
   ...MCP_SERVER_TOOL_DEFINITIONS,
+  // Fork: the super agent's ticket tools (src/backend/fork/tickets/ticket-tools.ts).
+  ...TICKET_TOOL_DEFINITIONS,
   {
     name: "list_sites",
     description:
