@@ -83,7 +83,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
       description, tone "follow the person's language") when it is created, so every bot has a
       persona to edit; an existing `persona.yaml` is never replaced. Tests.
-- [ ] P.7 Role defaults from `fork-config.yaml` (item 2.2): a `router` gets the Router persona
+- [x] P.7 Role defaults from `fork-config.yaml` (item 2.2): a `router` gets the Router persona
       template and a light model by default, a `worker` the strongest model.
 
 ## Phase 4: Watchdog, budget, resources
@@ -114,6 +114,11 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   bytes of searchable schema; the two persona tools (item P.3) by 46 visible bytes and about 0.8 KB.
 - An agent may add persona boundaries but not remove or reword one through `persona_update`; only
   the owner lifts a boundary by editing `persona.yaml`.
+
+- Item P.7: roles bring persona templates (router, watchdog) but not models. A model id depends on
+  the provider, and a silent switch would differ from the model that the app shows. Recommended:
+  Router and Watchdog on a light model (Claude Haiku or Sonnet), workers on the strongest
+  (`docs/fork/agents/README.md`). Set them in each agent's settings.
 
 ## Findings
 

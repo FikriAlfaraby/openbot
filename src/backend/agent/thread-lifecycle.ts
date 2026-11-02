@@ -20,6 +20,7 @@ import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
 import { ForkSignatures } from "../fork/fork-signatures";
+import { applyRoleTemplate } from "../fork/role-templates";
 import { forkMcpServersFor, forkRoleOf, ROUTER_CODEX_CONFIG } from "../fork/router-policy";
 import { type HomeSkill, listHomeSkills, skillFolderNames } from "../home-skills";
 import type { MailboxStore } from "../mailbox-store";
@@ -1274,6 +1275,8 @@ export class ThreadLifecycle {
       client.provider === "claude" && workspaceAccessEnforced(agent)
         ? []
         : agentProviderDescriptor(client.provider).workspaceInstructionFiles;
+    // Fork: a router or watchdog gets its role's persona template in place of a starter (item P.7).
+    yield* applyRoleTemplate(agent.workspacePath, forkRoleOf(this.#store.sharedRoot, agent.id), agent);
     const file = yield* promptInstructionsFile(agent.workspacePath, read);
     return {
       fileName: file?.fileName ?? "AGENTS.md",

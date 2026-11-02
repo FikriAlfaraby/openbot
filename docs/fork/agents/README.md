@@ -5,6 +5,7 @@
 | Router | `router.persona.yaml` | light Claude (Haiku or Sonnet) | Workspace only | none needed |
 | Coder | `coder.persona.yaml` | strongest Claude | Workspace only, T3 Code on the VPS | own session |
 | Researcher | `researcher.persona.yaml` | Sonnet | Workspace only | own session |
+| Watchdog | `watchdog.persona.yaml` | light Claude (Haiku) | Workspace only | none needed |
 
 Setup, until phase 2 adds this to the app:
 
@@ -17,3 +18,10 @@ Setup, until phase 2 adds this to the app:
 The Router persona follows the "delegation-first" baseline of the DeepSeek Super-agent article
 (section 7.1): a prompt alone gives most of the median speed-up. Phase 2 adds what a prompt cannot
 hold: the host keeps the Router from doing the work, and tickets track each task.
+
+## Role templates (item P.7)
+
+An agent with the role `router` or `watchdog` in `fork-config.yaml` gets `router.persona.yaml` or
+`watchdog.persona.yaml` at its next session, when it has no persona or still has the unchanged
+starter persona. An edited persona is never replaced. Models are not changed by the role: choose a
+light model for the Router and the Watchdog, and the strongest for workers, in each agent's settings.
