@@ -96,8 +96,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       `docs/fork/tickets.md`).
 - [x] 4.5 Router batching (article §2): Telegram messages that queue while the Router works start
       one Router turn together (`src/backend/fork/router-batch.ts`, `MessagingThreads.companions`).
-- [ ] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
-      `openbot.db` with the keyring (`docs/fork/storage.md`).
+- [x] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
+      `openbot.db` with the keyring (`docs/fork/storage.md`, `scripts/fork/openbot-backup`,
+      `src/backend/fork/storage/ticket-archive.ts`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -133,6 +134,11 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 - Item 4.5: batching is for the Router only, one conversation and one author, at most 10 messages,
   with one answer as a reply to the first message. Other agents keep upstream's one turn per message.
+
+- Item 4.4: ended tickets move to `fork-archive/` after 30 days by default (`storage.archiveAfterDays`).
+  A backup always contains the keyring, so an upload to a bucket is refused unless it is encrypted
+  with age or gpg, or `OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD=1`. The timer runs daily at about 03:17
+  server time and keeps 7 archives locally.
 
 ## Findings
 
@@ -190,3 +196,6 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   other deliveries of the turn are settled without a second post (`#finishedTurns`). Upstream has no
   unit tests for the mailbox, the drain or `MessagingThreads`; the fork tests the selection and the
   prompt text, and the wiring is checked by the type checker only.
+- Item 4.4: the "ticket folders" are T3 Code's worktrees, which T3 owns; the `t3` command has no
+  command to remove a thread's worktree, so their cleanup is T3's **Worktrees → Cleanup** setting.
+  The fork cleans what it owns: ticket rows (archive), browser sessions (4.3) and its observation log.

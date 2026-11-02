@@ -235,8 +235,16 @@ import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-tic
 import { budgetNote, ForkBudget } from "./fork/budget";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
-import { forkBudgetOf, forkChatMaxWords, forkGateOf, forkRoleOf, forkWatchdog } from "./fork/router-policy";
+import {
+  forkArchiveAfterDays,
+  forkBudgetOf,
+  forkChatMaxWords,
+  forkGateOf,
+  forkRoleOf,
+  forkWatchdog,
+} from "./fork/router-policy";
 import { writeStarterPersona } from "./fork/starter-persona";
+import { archiveDue, archiveEndedTickets, rotateObservations } from "./fork/storage/ticket-archive";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
@@ -5185,6 +5193,26 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * stuck (item 4.1). Skips while an earlier wake waits in its queue. A failure skips this check.
    */
   #watchdogTick(): void {
+    // Fork (item 4.4): once a day, old ended tickets and a large observation log go to the archive.
+    try {
+      const now = Date.now();
+      if (archiveDue(this.#lastArchive, now)) {
+        this.#lastArchive = now;
+        const openbotRoot = dirname(this.#store.sharedRoot);
+        const { archived } = archiveEndedTickets(
+          ticketStoreFor(dirname(this.#store.automationRoot)),
+          openbotRoot,
+          forkArchiveAfterDays(this.#store.sharedRoot),
+        );
+        const rotated = rotateObservations(openbotRoot);
+        if (archived > 0 || rotated)
+          logger.info(`Fork archive: ${archived} ticket(s)${rotated ? ", observation log" : ""}.`);
+      }
+    } catch (error) {
+      logger.warn("The fork archive failed; the next day tries again.", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     // Fork (item 4.3): the browser sessions of ended tickets go.
     try {
       this.#sweepTicketBrowsers();
@@ -5239,6 +5267,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   #forkBudget: ForkBudget | null = null;
+  /** Fork (item 4.4): when this process last moved old tickets to the archive. */
+  #lastArchive: number | null = null;
   /** Fork (item 4.3): the ended tickets whose browser session this process cleared. */
   readonly #clearedTicketSessions = new Set<string>();
 

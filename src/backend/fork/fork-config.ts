@@ -37,6 +37,11 @@ const AgentEntry = Schema.Struct({
   dailyUsd: Schema.optionalKey(DailyUsd),
 });
 
+/** The fork's storage housekeeping (item 4.4). */
+const StorageSettings = Schema.Struct({
+  archiveAfterDays: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 3_650 }))),
+});
+
 const BudgetSettings = Schema.Struct({
   dailyTokens: Schema.optionalKey(DailyTokens),
   dailyUsd: Schema.optionalKey(DailyUsd),
@@ -84,6 +89,7 @@ const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   watchdog: Schema.optionalKey(WatchdogSettings),
   budget: Schema.optionalKey(BudgetSettings),
+  storage: Schema.optionalKey(StorageSettings),
   gate: Schema.optionalKey(
     Schema.Struct({
       telegram: Schema.optionalKey(PlatformGateEntry),
@@ -118,6 +124,8 @@ export interface ForkConfig {
   budget: { dailyTokens?: number; dailyUsd?: number } | null;
   /** The budgets that the file sets for one agent, by agent id. */
   agentBudgets: ReadonlyMap<string, { dailyTokens?: number; dailyUsd?: number }>;
+  /** Days after its end before a ticket moves to the archive (item 4.4); null for the default. */
+  archiveAfterDays: number | null;
 }
 
 export const EMPTY_FORK_CONFIG: ForkConfig = {
@@ -129,6 +137,7 @@ export const EMPTY_FORK_CONFIG: ForkConfig = {
   watchdog: null,
   budget: null,
   agentBudgets: new Map(),
+  archiveAfterDays: null,
 };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
@@ -170,6 +179,7 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
       ),
       watchdog: decoded.success.watchdog ?? null,
       budget: decoded.success.budget ?? null,
+      archiveAfterDays: decoded.success.storage?.archiveAfterDays ?? null,
       agentBudgets,
       gates: new Map(
         Object.entries(decoded.success.gate ?? {}).map(([platform, entry]) => [

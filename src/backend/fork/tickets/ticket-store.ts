@@ -371,6 +371,30 @@ export class TicketStore {
     ).map(ticketOf);
   }
 
+  /** Ended tickets that did not change since `before` (an ISO time), oldest first (item 4.4). */
+  endedBefore(before: string, limit = 200): Ticket[] {
+    const states = [...ENDED_TICKET_STATES];
+    return databaseRows(
+      this.#db
+        .prepare(
+          `SELECT * FROM tickets WHERE state IN (${states.map(() => "?").join(", ")}) AND updated_at < ? ORDER BY updated_at LIMIT ?`,
+        )
+        .all(...states, before, Math.max(1, Math.min(limit, 1_000))),
+    ).map(ticketOf);
+  }
+
+  /** Deletes an ended ticket with its events and subscriptions, after it was archived (item 4.4). */
+  remove(ticketId: string): boolean {
+    const ticket = this.get(ticketId);
+    if (!ticket) return false;
+    if (!ENDED_TICKET_STATES.has(ticket.state))
+      throw new TicketError(
+        "transition",
+        `Ticket #${ticket.number} is ${ticket.state}; only an ended ticket is removed.`,
+      );
+    return this.#db.prepare("DELETE FROM tickets WHERE ticket_id = ?").run(ticketId).changes > 0;
+  }
+
   /** Gives the ticket to a worker and its side thread, and moves it to `working`. */
   assign(ticketId: string, assigneeAgentId: string, taskId: string | null, actor: string): Ticket {
     return this.#transaction(() => {

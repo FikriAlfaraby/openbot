@@ -1,0 +1,220 @@
+#!/bin/bash
+# Fork (super-agent, roadmap item 4.4): the daily backup of a self-hosted OpenBot server.
+#
+#   sudo openbot-backup run        one backup now
+#   sudo openbot-backup install    install this script and a daily systemd timer
+#
+# A backup is one archive with:
+#   - a consistent copy of every SQLite database of OpenBot (openbot.db, fork-tickets.db), taken
+#     with the SQLite backup API while OpenBot runs, so a write in progress cannot break it;
+#   - the rest of the service user's home folder (agents, Shared, fork-archive, settings), without
+#     caches and without the live database files;
+#   - the keyring in /srv/openbot-hosted. It holds the key of the encrypted data in the home folder
+#     (sign-ins, API keys), so the two are kept together: one without the other cannot be restored.
+#
+# Because the archive holds that key, anyone who has it can read the secrets. An upload to a bucket
+# is therefore refused unless the archive is encrypted (OPENBOT_BACKUP_AGE_RECIPIENT or
+# OPENBOT_BACKUP_GPG_RECIPIENT), or OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD=1 says otherwise.
+#
+# Settings come from the environment, or from /etc/openbot-backup.env (KEY=value lines, read as
+# data, not run). See docs/fork/storage.md.
+set -euo pipefail
+umask 077
+
+CONFIG_FILE=${OPENBOT_BACKUP_CONFIG:-/etc/openbot-backup.env}
+if [ -r "$CONFIG_FILE" ]; then
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    case $key in
+      OPENBOT_BACKUP_USER | OPENBOT_BACKUP_HOME | OPENBOT_BACKUP_KEYRING | OPENBOT_BACKUP_DIR | \
+        OPENBOT_BACKUP_KEEP | OPENBOT_BACKUP_BUCKET | OPENBOT_BACKUP_AGE_RECIPIENT | \
+        OPENBOT_BACKUP_GPG_RECIPIENT | OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD)
+        # The environment wins over the file.
+        if [ -z "${!key:-}" ]; then export "$key=$value"; fi
+        ;;
+    esac
+  done <"$CONFIG_FILE"
+fi
+
+SERVICE_USER=${OPENBOT_BACKUP_USER:-openbot}
+if [ -n "${OPENBOT_BACKUP_HOME:-}" ]; then
+  HOME_DIR=$OPENBOT_BACKUP_HOME
+else
+  HOME_DIR=$(getent passwd "$SERVICE_USER" | cut -d: -f6 || true)
+  HOME_DIR=${HOME_DIR:-/var/lib/$SERVICE_USER}
+fi
+KEYRING_DIR=${OPENBOT_BACKUP_KEYRING:-/srv/openbot-hosted}
+BACKUP_DIR=${OPENBOT_BACKUP_DIR:-/var/backups/openbot}
+KEEP=${OPENBOT_BACKUP_KEEP:-7}
+BUCKET=${OPENBOT_BACKUP_BUCKET:-}
+AGE_RECIPIENT=${OPENBOT_BACKUP_AGE_RECIPIENT:-}
+GPG_RECIPIENT=${OPENBOT_BACKUP_GPG_RECIPIENT:-}
+ALLOW_PLAIN=${OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD:-0}
+
+log() { echo "openbot-backup: $*" >&2; }
+fail() {
+  log "$*"
+  exit 1
+}
+
+[[ $KEEP =~ ^[1-9][0-9]*$ ]] || fail "OPENBOT_BACKUP_KEEP must be a whole number from 1."
+
+# A consistent copy of one SQLite database, with the backup API: python3, or the sqlite3 command.
+snapshot_db() {
+  local source=$1 target=$2
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -I - "$source" "$target" <<'PY'
+import sqlite3, sys
+source = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True, timeout=30)
+target = sqlite3.connect(sys.argv[2])
+with target:
+    source.backup(target)
+check = target.execute("PRAGMA quick_check").fetchone()[0]
+target.close()
+source.close()
+if check != "ok":
+    sys.exit(f"quick_check of the copy: {check}")
+PY
+  elif command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "file:$source?mode=ro" ".timeout 30000" ".backup '$target'"
+  else
+    fail "Neither python3 nor sqlite3 is installed; one is needed to copy the databases safely."
+  fi
+}
+
+run_backup() {
+  [ -d "$HOME_DIR" ] || fail "The home folder $HOME_DIR does not exist."
+  if [ -n "$BUCKET" ] && [ -z "$AGE_RECIPIENT" ] && [ -z "$GPG_RECIPIENT" ] && [ "$ALLOW_PLAIN" != 1 ]; then
+    fail "The archive holds the keyring, so it is not sent to $BUCKET unencrypted. Set OPENBOT_BACKUP_AGE_RECIPIENT or OPENBOT_BACKUP_GPG_RECIPIENT, or OPENBOT_BACKUP_ALLOW_PLAIN_UPLOAD=1."
+  fi
+  mkdir -p "$BACKUP_DIR"
+  chmod 0700 "$BACKUP_DIR"
+  local stamp work archive
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  archive="$BACKUP_DIR/openbot-$stamp.tar.gz"
+  if compgen -G "$archive*" >/dev/null; then fail "A backup of $stamp exists already; try again in a second."; fi
+  work=$(mktemp -d "$BACKUP_DIR/.work-$stamp.XXXXXX")
+  WORK_DIR=$work
+  trap 'rm -rf "$WORK_DIR"' EXIT
+  mkdir -p "$work/databases"
+
+  # Every SQLite database of OpenBot in the home folder: the user data folder holds openbot.db and
+  # fork-tickets.db. Agent workspaces are copied as files with the rest.
+  local excludes=() count=0 db relative
+  while IFS= read -r -d '' db; do
+    relative=${db#"$HOME_DIR"/}
+    mkdir -p "$work/databases/$(dirname "$relative")"
+    snapshot_db "$db" "$work/databases/$relative"
+    excludes+=("--exclude=./$relative" "--exclude=./$relative-wal" "--exclude=./$relative-shm" "--exclude=./$relative-journal")
+    count=$((count + 1))
+  done < <(find "$HOME_DIR" -maxdepth 4 -type f \( -name openbot.db -o -name fork-tickets.db \) -print0)
+  [ "$count" -gt 0 ] || log "No openbot.db found under $HOME_DIR; the files are copied without a database."
+
+  {
+    echo "created=$stamp"
+    echo "home=$HOME_DIR"
+    echo "keyring=$KEYRING_DIR"
+    echo "databases=$count"
+  } >"$work/MANIFEST"
+
+  local keyring=()
+  if [ -d "$KEYRING_DIR/keyrings" ]; then
+    keyring=(--directory "$KEYRING_DIR" keyrings)
+  else
+    log "No keyring in $KEYRING_DIR/keyrings; the encrypted sign-ins in this backup cannot be read after a restore."
+  fi
+  local status=0
+  # tar exits 1 when a file changed while it was read (a log); the databases are copied above.
+  # Names: home/… for the home folder, databases/… for the copies, keyring/keyrings/… for the keyring.
+  tar --create --gzip --file "$archive" --warning=no-file-changed --warning=no-file-removed \
+    --transform 's,^\./,home/,' --transform 's,^keyrings,keyring/keyrings,' \
+    --exclude='./.cache' --exclude='Cache' --exclude='Code Cache' --exclude='GPUCache' \
+    --exclude='DawnCache' --exclude='Crashpad' --anchored "${excludes[@]}" --no-anchored \
+    --directory "$HOME_DIR" . \
+    --directory "$work" MANIFEST databases \
+    "${keyring[@]}" ||
+    status=$?
+  [ "$status" -le 1 ] || fail "tar failed with status $status."
+
+  if [ -n "$AGE_RECIPIENT" ]; then
+    age --encrypt --recipient "$AGE_RECIPIENT" --output "$archive.age" "$archive"
+    rm -f "$archive"
+    archive="$archive.age"
+  elif [ -n "$GPG_RECIPIENT" ]; then
+    gpg --batch --yes --trust-model always --encrypt --recipient "$GPG_RECIPIENT" --output "$archive.gpg" "$archive"
+    rm -f "$archive"
+    archive="$archive.gpg"
+  fi
+  chmod 0600 "$archive"
+  log "Wrote $archive."
+
+  if [ -n "$BUCKET" ]; then
+    local name=${archive##*/}
+    case $BUCKET in
+      s3://*) aws s3 cp --only-show-errors "$archive" "${BUCKET%/}/$name" ;;
+      gs://*)
+        if command -v gcloud >/dev/null 2>&1; then
+          gcloud storage cp "$archive" "${BUCKET%/}/$name"
+        else
+          gsutil -q cp "$archive" "${BUCKET%/}/$name"
+        fi
+        ;;
+      *:*) rclone copyto "$archive" "${BUCKET%/}/$name" ;;
+      *) fail "OPENBOT_BACKUP_BUCKET must be s3://…, gs://… or an rclone remote name:path." ;;
+    esac
+    log "Sent to ${BUCKET%/}/$name."
+  fi
+
+  # Keep the newest $KEEP archives here; the bucket keeps its own (set a lifecycle rule there).
+  find "$BACKUP_DIR" -maxdepth 1 -type f -name 'openbot-*.tar.gz*' -printf '%f\n' | sort -r |
+    tail -n +$((KEEP + 1)) | while IFS= read -r old; do rm -f "$BACKUP_DIR/$old"; done
+}
+
+install_timer() {
+  [ "$(id -u)" -eq 0 ] || fail "install needs root."
+  install -m 0755 "$0" /usr/local/bin/openbot-backup
+  cat >/etc/systemd/system/openbot-backup.service <<'UNIT'
+[Unit]
+Description=OpenBot daily backup (fork)
+After=openbot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/openbot-backup run
+Nice=10
+IOSchedulingClass=idle
+UNIT
+  cat >/etc/systemd/system/openbot-backup.timer <<'UNIT'
+[Unit]
+Description=OpenBot daily backup (fork)
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+  if [ ! -e /etc/openbot-backup.env ]; then
+    cat >/etc/openbot-backup.env <<'ENV'
+OPENBOT_BACKUP_USER=openbot
+OPENBOT_BACKUP_DIR=/var/backups/openbot
+OPENBOT_BACKUP_KEEP=7
+OPENBOT_BACKUP_BUCKET=
+OPENBOT_BACKUP_AGE_RECIPIENT=
+ENV
+    chmod 0600 /etc/openbot-backup.env
+  fi
+  systemctl daemon-reload
+  systemctl enable --now openbot-backup.timer
+  log "Installed. Settings: /etc/openbot-backup.env. Next run: systemctl list-timers openbot-backup.timer"
+}
+
+case ${1:-} in
+  run) run_backup ;;
+  install) install_timer ;;
+  *)
+    echo "Usage: openbot-backup run | install" >&2
+    exit 2
+    ;;
+esac

@@ -9,6 +9,7 @@ import type { BudgetLimit } from "./budget";
 import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
 import type { PlatformGate } from "./gate";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
+import { DEFAULT_ARCHIVE_AFTER_DAYS } from "./storage/ticket-archive";
 import { DEFAULT_WATCHDOG } from "./tickets/watchdog";
 
 /** The OpenBot tools that a Router may call, by `namespace.tool`. Everything else is refused. */
@@ -182,4 +183,9 @@ export function forkBudgetOf(sharedRoot: string, agentId: string): BudgetLimit |
   const dailyTokens = own?.dailyTokens ?? config.budget?.dailyTokens ?? null;
   const dailyUsd = own?.dailyUsd ?? config.budget?.dailyUsd ?? null;
   return dailyTokens === null && dailyUsd === null ? null : { dailyTokens, dailyUsd };
+}
+
+/** Days after its end before a ticket moves to the archive (item 4.4). */
+export function forkArchiveAfterDays(sharedRoot: string): number {
+  return readerFor(sharedRoot).current().config.archiveAfterDays ?? DEFAULT_ARCHIVE_AFTER_DAYS;
 }
