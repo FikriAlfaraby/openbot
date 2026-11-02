@@ -67,6 +67,11 @@ A rollback first records the current file, then writes the old version back as a
 history only grows. `status` shows `Default updated` when upstream changed a built-in rule after
 the persona overrode it; then compare the new default with your override.
 
+The agent also hears it (item P.6): when a built-in rule that its persona overrides changed after
+the persona's version was saved, its instructions ask it to tell the user once in its next answer,
+and `persona_read` lists the rules in `defaultUpdated`. Saving the persona again (a new version)
+records the new defaults and ends the notice.
+
 ## Not in phase 1
 
 - No settings UI or IPC; edit the files directly. Agents use `persona_read` and `persona_update`

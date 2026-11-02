@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { Effect, Option } from "effect";
 import { z } from "zod";
 import { PersonaFileFailed, personaIo, personaTextHash, readPersonaText } from "../agent/persona/persona-file";
-import { listPersonaVersions, snapshotPersona } from "../agent/persona/persona-history";
+import { listPersonaVersions, snapshotPersona, staleOverrides } from "../agent/persona/persona-history";
 import { PERSONA_FILE_NAME, PERSONA_LIMITS, parsePersona } from "../agent/persona/persona-schema";
 import { writeFileAtomically } from "../atomic-json-file";
 
@@ -97,6 +97,8 @@ export const handlePersonaTool = Effect.fn("PersonaTools.handle")(function* (
         hash,
         version: versions.findLast((entry) => entry.hash === hash)?.version ?? null,
         versions: versions.length,
+        // Built-in rules that this persona overrides and that OpenBot changed since (item P.6).
+        defaultUpdated: yield* staleOverrides(workspace).pipe(Effect.orElseSucceed((): readonly string[] => [])),
         text: current.text,
         ...(persona ? (persona.ok ? { persona: persona.persona } : { issue: persona.issue }) : {}),
       },

@@ -71,7 +71,7 @@ import {
   readGlobalInstructions,
   readPersonaText,
 } from "./persona/persona-file";
-import { snapshotPersona } from "./persona/persona-history";
+import { snapshotPersona, staleOverrides } from "./persona/persona-history";
 import { isProviderTimeout } from "./provider-status";
 import { sessionSettingsIdentity } from "./session-settings";
 import { isArchivedThreadError, isMissingProviderSessionError, providerLabel } from "./thread-items";
@@ -1280,7 +1280,12 @@ export class ThreadLifecycle {
       found: file,
       file: file && !file.readByCli ? file : null,
       // The OpenBot folder holds `Shared`, so it is the parent of the shared directory.
-      persona: yield* personaForPrompt(agent.workspacePath, dirname(this.#store.sharedRoot), snapshotPersona),
+      persona: yield* personaForPrompt(
+        agent.workspacePath,
+        dirname(this.#store.sharedRoot),
+        snapshotPersona,
+        staleOverrides,
+      ),
     } satisfies InstructionsFileInPrompt;
   });
 

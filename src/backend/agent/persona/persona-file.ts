@@ -45,6 +45,8 @@ export interface PromptPersona {
   issue: string | null;
   /** The version number in the history, when the history recorded this text. */
   version?: number;
+  /** The overridden built-in rules whose default changed after this version was saved (item P.6). */
+  defaultUpdated?: string[];
 }
 
 export function personaTextHash(text: string): string {
@@ -146,12 +148,17 @@ export const personaForPrompt = Effect.fn("PersonaFile.forPrompt")(function* (
   workspace: string,
   openbotRoot: string,
   snapshot: (workspace: string, text: string) => Effect.Effect<{ version: number }, unknown>,
+  staleDefaults?: (workspace: string) => Effect.Effect<readonly string[], unknown>,
 ) {
   const persona = yield* promptPersona(workspace);
   const globalInstructions = yield* readGlobalInstructions(openbotRoot);
   if (persona?.text) {
     const saved = yield* snapshot(workspace, persona.text).pipe(Effect.option);
     if (Option.isSome(saved)) persona.version = saved.value.version;
+    if (staleDefaults) {
+      const stale = yield* staleDefaults(workspace).pipe(Effect.orElseSucceed((): readonly string[] => []));
+      if (stale.length > 0) persona.defaultUpdated = [...stale];
+    }
   }
   return { persona, globalInstructions } satisfies PersonaForPrompt;
 });

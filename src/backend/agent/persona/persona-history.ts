@@ -153,6 +153,11 @@ export const rollbackPersona = Effect.fn("PersonaHistory.rollback")(function* (w
   return Option.some(yield* snapshotPersona(workspace, text.value));
 });
 
+/** The overridden built-in rules of the current file whose default changed since it was saved. */
+export const staleOverrides = Effect.fn("PersonaHistory.staleOverrides")(function* (workspace: string) {
+  return (yield* personaStatus(workspace)).defaultUpdated;
+});
+
 /** The current file, its version, and the overrides whose built-in default changed since. */
 export const personaStatus = Effect.fn("PersonaHistory.status")(function* (workspace: string) {
   const versions = yield* listPersonaVersions(workspace);

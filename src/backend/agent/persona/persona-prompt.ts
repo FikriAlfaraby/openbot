@@ -38,6 +38,11 @@ export function personaSection(prompt: PromptPersona | null | undefined): string
     "<agent_persona>",
     personaJson(prompt.persona),
     "</agent_persona>",
+    ...(prompt.defaultUpdated?.length
+      ? [
+          `OpenBot changed the built-in default of the rules that your persona overrides: ${prompt.defaultUpdated.join(", ")}. In your next answer to the user, say so once in one line and offer to compare them with openbot.persona_read; do not change the persona unless the user asks.`,
+        ]
+      : []),
   ];
 }
 

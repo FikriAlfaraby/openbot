@@ -14,6 +14,7 @@ import {
   readPersonaVersion,
   rollbackPersona,
   snapshotPersona,
+  staleOverrides,
 } from "./persona-history";
 import { parsePersona } from "./persona-schema";
 
@@ -252,5 +253,36 @@ describe("channel output norms (item P.2)", () => {
     expect(text).toContain("channels.chat for Slack, Discord and Telegram replies");
     expect(text).not.toContain("channels.async for GitHub");
     expect(text).toContain('"chat":"At most 100 words."');
+  });
+});
+
+describe("Default updated reaches the owner (item P.6)", () => {
+  it("tells the agent once when an overridden default changed after the version was saved", async () => {
+    await writeFile(join(workspace, "persona.yaml"), PERSONA);
+    await run(snapshotPersona(workspace, PERSONA));
+    // A version saved under an older default: its record holds another hash of the style rule.
+    const dir = join(workspace, ".openbot-persona", "versions");
+    const { readdir } = await import("node:fs/promises");
+    const record = (await readdir(dir)).find((name) => name.endsWith(".json")) ?? "";
+    await writeFile(join(dir, record), JSON.stringify({ savedAt: "x", overrideBases: { style: "0000000000000000" } }));
+    const loaded = await run(personaForPrompt(workspace, root, snapshotPersona, staleOverrides));
+    expect(loaded.persona?.defaultUpdated).toEqual(["style"]);
+    const text = developerInstructions(
+      agent(workspace),
+      join(root, "Shared"),
+      [],
+      join(root, "auto"),
+      DEFAULT_AGENT_DEFAULTS,
+      {
+        persona: loaded.persona,
+      },
+    );
+    expect(text).toContain("OpenBot changed the built-in default of the rules that your persona overrides: style.");
+  });
+
+  it("says nothing while the defaults are the same", async () => {
+    await writeFile(join(workspace, "persona.yaml"), PERSONA);
+    const loaded = await run(personaForPrompt(workspace, root, snapshotPersona, staleOverrides));
+    expect(loaded.persona?.defaultUpdated).toBeUndefined();
   });
 });

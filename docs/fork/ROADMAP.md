@@ -78,7 +78,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       outside `.openbot` and the managed skill folders, so `persona.yaml` and `.openbot-persona/`
       travel; a test guards it. Link-only templates do not: their snapshot is a contract that the
       account service on openbot.run checks, which the fork cannot change (see Findings).
-- [ ] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
+- [x] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
       overrides changed after an upstream sync.
 - [ ] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
       description, tone "follow the person's language") when it is created, so every bot has a
