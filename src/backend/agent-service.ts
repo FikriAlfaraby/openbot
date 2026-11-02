@@ -231,8 +231,9 @@ import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
+import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
-import { forkChatMaxWords, forkRoleOf } from "./fork/router-policy";
+import { forkChatMaxWords, forkGateOf, forkRoleOf } from "./fork/router-policy";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
@@ -242,8 +243,9 @@ import type { MailboxStore } from "./mailbox-store";
 import { toMcpOperationError } from "./mcp-effects";
 import type { McpSignInOpener } from "./mcp-oauth-provider";
 import { McpServerStore } from "./mcp-server-store";
-import type { MessagingLink } from "./messaging/messaging-store";
+import type { MessagingConnectionRecord, MessagingLink } from "./messaging/messaging-store";
 import { type MessagingReceiveInput, MessagingThreads, toMessagingThreadFailed } from "./messaging/messaging-threads";
+import type { InboundMessage } from "./messaging/messaging-types";
 import type { PasswordVault } from "./password-vault";
 import { decodeRecordResponse, getString } from "./protocol";
 import { NO_PROVIDER_CREDENTIALS, type ProviderClientContext } from "./provider-drivers";
@@ -5158,6 +5160,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         Effect.forkIn(this.#scope, { startImmediately: true }),
       ),
     );
+  }
+
+  /** Fork: the gate of a chat message from `fork-config.yaml` (item 3.3); observed ones are recorded. */
+  gateChatMessage(record: MessagingConnectionRecord, message: InboundMessage): GateDecision {
+    const decision = gateDecision(forkGateOf(this.#store.sharedRoot, record.platform), message);
+    if (decision === "observe")
+      recordObservation(dirname(this.#store.sharedRoot), {
+        platform: record.platform,
+        connectionId: record.connectionId,
+        chatId: message.platformChannelId,
+        threadKey: message.threadKey,
+        authorId: message.authorId,
+        isDirect: message.isDirect,
+        text: message.text,
+      });
+    return decision;
   }
 
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */

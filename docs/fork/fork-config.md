@@ -43,3 +43,24 @@ chat:
 A Router answer in Slack, Discord or Telegram longer than `maxWords` words is cut at the end of the
 last sentence that fits, and the post adds "The full answer is in the OpenBot app." The Router's
 conversation in the app keeps the full answer. Other agents' answers are not changed.
+
+## Gate for chat platforms (item 3.3)
+
+```yaml
+gate:
+  telegram:
+    mode: observe          # off | observe | auto
+    allow: ["123456789"]   # Telegram user ids that may give work; omit for everyone
+```
+
+| Mode | A sender in `allow` | Any other sender |
+|---|---|---|
+| `auto` | reaches the Router | dropped, with no reaction |
+| `observe` | reaches the Router | recorded in `<OpenBot>/fork-observations.jsonl`, no agent acts |
+| `off` | dropped | dropped |
+
+No `gate` block for a platform keeps upstream's behavior (everyone in a linked chat). The check
+runs before any agent sees the message and before OpenBot reacts to it. The observation file keeps
+the time, chat, sender id and the first 500 characters, redacted; it moves to `.1` at 2 MiB.
+Find your Telegram user id in the prompt of any message ("Telegram user <id>") or with a bot such
+as @userinfobot. Slack and Discord take the same block.

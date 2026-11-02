@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { Result, Schema } from "effect";
 import { parse as parseYaml } from "yaml";
+import type { PlatformGate } from "./gate";
 
 export const FORK_CONFIG_FILE_NAME = "fork-config.yaml";
 /** Bytes. The file names a few dozen agents at most. */
@@ -54,8 +55,21 @@ const McpAccess = Schema.Struct({
   agents: Schema.Array(AgentId).check(Schema.isMaxLength(64)),
 });
 
+/** The gate of one chat platform (item 3.3). */
+const PlatformGateEntry = Schema.Struct({
+  mode: Schema.Literals(["off", "observe", "auto"]),
+  allow: Schema.optionalKey(Schema.Array(PlainText(64)).check(Schema.isMaxLength(500))),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
+  gate: Schema.optionalKey(
+    Schema.Struct({
+      telegram: Schema.optionalKey(PlatformGateEntry),
+      slack: Schema.optionalKey(PlatformGateEntry),
+      discord: Schema.optionalKey(PlatformGateEntry),
+    }),
+  ),
   agents: Schema.optionalKey(Schema.Record(AgentId, AgentEntry)),
   chat: Schema.optionalKey(ChatSettings),
   t3: Schema.optionalKey(T3Settings),
@@ -75,9 +89,17 @@ export interface ForkConfig {
   t3: ForkT3Settings | null;
   /** The agents of each MCP server that the file limits, by server name. Other servers go to all. */
   mcpAgents: ReadonlyMap<string, ReadonlySet<string>>;
+  /** The gate of each chat platform that the file names (item 3.3). */
+  gates: ReadonlyMap<string, PlatformGate>;
 }
 
-export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null, t3: null, mcpAgents: new Map() };
+export const EMPTY_FORK_CONFIG: ForkConfig = {
+  roles: new Map(),
+  chatMaxWords: null,
+  t3: null,
+  mcpAgents: new Map(),
+  gates: new Map(),
+};
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
 
@@ -107,6 +129,12 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
       t3: decoded.success.t3 ?? null,
       mcpAgents: new Map(
         Object.entries(decoded.success.mcp ?? {}).map(([name, access]) => [name, new Set(access.agents)]),
+      ),
+      gates: new Map(
+        Object.entries(decoded.success.gate ?? {}).map(([platform, entry]) => [
+          platform,
+          { mode: entry.mode, allow: entry.allow ? new Set(entry.allow) : null },
+        ]),
       ),
     },
   };

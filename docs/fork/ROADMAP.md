@@ -57,7 +57,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       redirect works; document it in `docs/fork/t3.md`. The CLI path of 3.1 stays the fallback.
 - [x] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
       stops, and can resume or close it.
-- [ ] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
+- [x] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
       user, bot messages as inferred candidates. Tests.
 - [ ] 3.4 Mandate: scope and strength recorded on each ticket, checked by the host before risky
       actions and before a ticket resumes.
@@ -141,3 +141,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - A T3 thread that waits for a person has a pending user question; the CLI cannot answer it.
   `t3 thread send` only queues a next turn. The answer goes in the T3 Code app or web, or through
   T3's MCP tool `t3_pending_request` (item 3.1d). Permission requests can only be answered in T3.
+- Telegram never delivers another bot's messages to a bot, and OpenBot drops bot senders in
+  `telegram-updates.ts`, so the prototype's "bots as inferred candidates" does not arise there.
+- The gate's `observe` records only; the prototype's observe also runs the assessment and records
+  its decision. A model assessment of observed messages could come later, at a token cost.

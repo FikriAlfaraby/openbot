@@ -6,6 +6,7 @@
 
 import { dirname } from "node:path";
 import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
+import type { PlatformGate } from "./gate";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
 
 /** The OpenBot tools that a Router may call, by `namespace.tool`. Everything else is refused. */
@@ -135,6 +136,11 @@ export function forkMcpServersFor<T extends { name: string }>(
   const limits = readerFor(sharedRoot).current().config.mcpAgents;
   if (limits.size === 0) return servers;
   return servers.filter((server) => limits.get(server.name)?.has(agentId) ?? true);
+}
+
+/** The gate of a chat platform from `fork-config.yaml`, or null for upstream's behavior (item 3.3). */
+export function forkGateOf(sharedRoot: string, platform: string): PlatformGate | null {
+  return readerFor(sharedRoot).current().config.gates.get(platform) ?? null;
 }
 
 /** The T3 Code settings of `fork-config.yaml`, or null (item 3.1b). */

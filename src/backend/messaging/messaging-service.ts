@@ -106,6 +106,8 @@ export interface MessagingAgents {
   sidebarChatIds(): ReadonlySet<string>;
   /** Fork: the host's reply rule for an agent's answer in a chat channel (`fork/reply-rules.ts`). */
   shapeAnswer?(agentId: string, text: string): string;
+  /** Fork: the gate of a message, before any agent sees it (`fork/gate.ts`). Absent accepts all. */
+  gate?(record: MessagingConnectionRecord, message: InboundMessage): "accept" | "observe" | "drop";
 }
 
 export interface MessagingServiceOptions {
@@ -1153,6 +1155,8 @@ export class MessagingService {
     if (!live.identity) return;
     // A connection with a role list ignores everyone else, before anything shows the message was seen.
     if (!this.#authorAllowed(live.record.connectionId, message)) return;
+    // Fork: the gate drops or only records a message before anything shows that it was seen.
+    if ((this.#agents.gate?.(live.record, message) ?? "accept") !== "accept") return;
     // Before any await: a redelivered event can arrive while the first copy is still downloading its
     // files, before the mailbox holds its idempotency key. The mailbox key covers a restart.
     const store = this.#threads.store;
