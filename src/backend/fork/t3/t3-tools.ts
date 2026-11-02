@@ -4,6 +4,7 @@
 // the run came to. `t3_show` reads the thread. The host checks that the caller is the ticket's
 // assignee; the Router never gets these tools (`router-policy.ts`).
 
+import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { z } from "zod";
 import type { ForkRole, ForkT3Settings } from "../fork-config";
@@ -19,7 +20,7 @@ import {
   ticketStateFor,
 } from "./t3-cli";
 
-export const T3_TOOL_NAMES = ["t3_run", "t3_show"] as const;
+export const T3_TOOL_NAMES = ["t3_run", "t3_show", "t3_sweep"] as const;
 export type T3ToolName = (typeof T3_TOOL_NAMES)[number];
 
 export function isT3Tool(name: string): name is T3ToolName {
@@ -47,6 +48,7 @@ const runShape = {
     .describe("For the first run of a ticket: the branch that the new worktree starts from."),
 };
 const showShape = { ticket: TicketRef };
+const sweepShape = {};
 
 export const T3_TOOL_DEFINITIONS = [
   {
@@ -57,12 +59,60 @@ export const T3_TOOL_DEFINITIONS = [
   },
   {
     name: "t3_show",
-    description: "Worker of a coding ticket. Read the state and the latest messages of the ticket's T3 Code thread.",
+    description: "Worker or Watchdog. Read the state and the latest messages of a coding ticket's T3 Code thread.",
     shape: showShape,
+  },
+  {
+    name: "t3_sweep",
+    description:
+      "Watchdog only. Check the T3 Code thread of every live coding ticket: a thread that waits for a person moves its ticket to awaiting_human; a thread with no active run while its ticket is working, or a failed run, is flagged for you to act on.",
+    shape: sweepShape,
   },
 ] as const;
 
-const schemas = { t3_run: z.strictObject(runShape), t3_show: z.strictObject(showShape) };
+const schemas = {
+  t3_run: z.strictObject(runShape),
+  t3_show: z.strictObject(showShape),
+  t3_sweep: z.strictObject(sweepShape),
+};
+
+/** What T3's `thread show --json` gives for a thread (T3 `OrchestratorMcpThreadDetail`). */
+export interface T3ThreadState {
+  status: string;
+  activeRunId: string | null;
+  pendingRequestCount: number;
+  settled: boolean;
+  pullRequest: string | null;
+}
+
+export function t3ThreadState(json: unknown): T3ThreadState | null {
+  if (!isDynamicRecord(json) || !isDynamicRecord(json.thread)) return null;
+  const thread = json.thread;
+  if (typeof thread.status !== "string") return null;
+  const pullRequest = thread.linkedPullRequest;
+  return {
+    status: thread.status,
+    activeRunId: typeof thread.activeRunId === "string" ? thread.activeRunId : null,
+    pendingRequestCount: typeof thread.pendingRequestCount === "number" ? thread.pendingRequestCount : 0,
+    settled: thread.settled === true,
+    pullRequest: isDynamicRecord(pullRequest) && typeof pullRequest.url === "string" ? pullRequest.url : null,
+  };
+}
+
+export type T3SweepFlag = "waits_for_person" | "idle_while_working" | "run_failed" | "running" | "ok" | "unreadable";
+
+/** What a T3 thread's state means for its ticket. */
+export function sweepFlag(ticket: Ticket, state: T3ThreadState | null): T3SweepFlag {
+  if (!state) return "unreadable";
+  if (state.pendingRequestCount > 0) return "waits_for_person";
+  if (state.activeRunId !== null) return "running";
+  if (state.status === "failed" || state.status === "interrupted")
+    return ticket.state === "working" ? "run_failed" : "ok";
+  return ticket.state === "working" ? "idle_while_working" : "ok";
+}
+
+const T3_QUESTION =
+  "T3 Code asks a question in its thread. Answer it in the T3 Code app or web (t3_run only queues a next turn and does not answer the open question).";
 
 export interface T3ToolPorts {
   store: TicketStore;
@@ -117,7 +167,7 @@ function applyOutcome(store: TicketStore, ticket: Ticket, outcome: T3Outcome, ca
     summary,
     humanAction:
       outcome.kind === "needs_input"
-        ? `T3 Code thread ${outcome.threadId ?? ticket.t3ThreadId ?? ""} waits for an answer. Answer in T3 Code, or tell the Router and the worker passes it on with t3_run.`
+        ? `${T3_QUESTION} Thread: ${outcome.threadId ?? ticket.t3ThreadId ?? "unknown"}.`
         : null,
   });
 }
@@ -134,14 +184,19 @@ export const handleT3Tool = Effect.fn("T3Tools.handle")(function* (
       ok: false,
       error: `Invalid ${tool} input: ${parsed.error.issues.map((issue) => issue.path.join(".") || issue.message).join(", ")}.`,
     };
-  if (ports.roleOf(callerId) === "router")
-    return { ok: false, error: "The Router does not run code; assign a ticket." };
+  const role = ports.roleOf(callerId);
+  if (role === "router") return { ok: false, error: "The Router does not run code; assign a ticket." };
   try {
-    const ticket = resolve(ports.store, parsed.data.ticket);
-    if (ticket.assigneeAgentId !== callerId)
-      return { ok: false, error: `Ticket #${ticket.number} is not assigned to you.` };
     const config = ports.settings();
-    const settings = cliSettings(config);
+    if (tool === "t3_sweep") {
+      if (role !== "watchdog") return { ok: false, error: "t3_sweep is for the Watchdog." };
+      return { ok: true, value: yield* sweep(ports, cliSettings(config, 30), callerId) };
+    }
+    const ref = schemas[tool].parse(args).ticket;
+    const ticket = resolve(ports.store, ref);
+    if (ticket.assigneeAgentId !== callerId && !(tool === "t3_show" && role === "watchdog"))
+      return { ok: false, error: `Ticket #${ticket.number} is not assigned to you.` };
+    const settings = cliSettings(config, tool === "t3_show" ? 30 : undefined);
     if (tool === "t3_show") {
       if (!ticket.t3ThreadId) return { ok: false, error: `Ticket #${ticket.number} has no T3 thread yet; use t3_run.` };
       const result = yield* safely(ports.call(settings, t3Args.show(settings, ticket.t3ThreadId)));
@@ -188,4 +243,35 @@ export const handleT3Tool = Effect.fn("T3Tools.handle")(function* (
       return { ok: false, error: error.message };
     throw error;
   }
+});
+
+/** Checks the T3 thread of each live coding ticket, for the Watchdog (item 3.1c). */
+const sweep = Effect.fn("T3Tools.sweep")(function* (ports: T3ToolPorts, settings: T3Settings, callerId: string) {
+  const live = ports.store
+    .list({ states: ["working", "awaiting_human", "review", "blocked"], limit: 50 })
+    .filter((ticket) => ticket.t3ThreadId !== null)
+    .slice(0, 20);
+  const rows = [];
+  for (const ticket of live) {
+    const result = yield* safely(ports.call(settings, t3Args.show(settings, ticket.t3ThreadId ?? "")));
+    const state = result.exitCode === 0 ? t3ThreadState(parseT3Json(result.stdout)) : null;
+    const flag = sweepFlag(ticket, state);
+    const current =
+      flag === "waits_for_person" && ticket.state === "working"
+        ? ports.store.transition(ticket.ticketId, "awaiting_human", {
+            actor: callerId,
+            humanAction: `${T3_QUESTION} Thread: ${ticket.t3ThreadId}.`,
+          })
+        : ticket;
+    rows.push({
+      ticket: ticket.number,
+      title: ticket.title,
+      state: current.state,
+      assignee: ticket.assigneeAgentId,
+      t3ThreadId: ticket.t3ThreadId,
+      flag,
+      t3: state,
+    });
+  }
+  return { checked: rows.length, tickets: rows };
 });

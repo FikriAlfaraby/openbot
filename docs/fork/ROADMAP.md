@@ -50,7 +50,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] 3.1b T3 Code executor, part 2: the ticket keeps its T3 thread id; a follow-up on the ticket
       goes to the same T3 thread (`t3 thread send`); the Coder persona and a skill tell the Coder to
       use it for all coding work; T3 worktree cleanup and worktree location in `docs/fork/t3.md`.
-- [ ] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
+- [x] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
       working tickets; a T3 question (exit 2) reaches the person through the Router.
 - [ ] 3.1d T3 Code over MCP (owner's wish): connect T3's `/mcp` on `localhost` to the Coder only,
       and finish the OAuth approval in OpenBot's own browser on the VPS, where the `localhost`
@@ -106,7 +106,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - The six ticket tools raise the agent context baseline (`tools/agent-context/budget.json`) by 133
   bytes of always-visible text (tool names in `tool_search`) and about 3.3 KB of searchable catalog.
   Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature. The two
-  T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog.
+  T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog; `t3_sweep`
+  (item 3.1c) by 18 visible bytes and about 0.3 KB.
 
 ## Findings
 
@@ -134,3 +135,6 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   (`src/backend/fork/t3/t3-cli.ts`), called by OpenBot tools in item 3.1b, not a script.
 - A `t3_run` that outlasts its wait (`t3.waitSeconds`, default 600 s) leaves the ticket in `working`:
   the run goes on in T3 Code; only the CLI call ends.
+- A T3 thread that waits for a person has a pending user question; the CLI cannot answer it.
+  `t3 thread send` only queues a next turn. The answer goes in the T3 Code app or web, or through
+  T3's MCP tool `t3_pending_request` (item 3.1d). Permission requests can only be answered in T3.

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseForkConfig } from "../fork-config";
 import { TicketStore } from "../tickets/ticket-store";
 import type { T3CallResult } from "./t3-cli";
-import { cliSettings, handleT3Tool, type T3ToolPorts } from "./t3-tools";
+import { cliSettings, handleT3Tool, sweepFlag, type T3ToolPorts, t3ThreadState } from "./t3-tools";
 
 let dir: string;
 let store: TicketStore;
@@ -21,7 +21,7 @@ const json = (value: unknown, exitCode = 0): T3CallResult => ({
 
 const ports = (): T3ToolPorts => ({
   store,
-  roleOf: (id) => (id === "router" ? "router" : id === "coder" ? "worker" : null),
+  roleOf: (id) => (id === "router" ? "router" : id === "coder" ? "worker" : id === "watch" ? "watchdog" : null),
   settings: () => ({ command: ["t3"], project: "/srv/app", baseBranch: "develop", waitSeconds: 60 }),
   call: (_settings, args) =>
     Effect.sync(() => {
@@ -133,5 +133,77 @@ describe("T3 settings", () => {
     });
     expect(parseForkConfig("version: 1\nt3:\n  waitSeconds: 5\n").ok).toBe(false);
     expect(cliSettings(null)).toEqual({ command: ["t3"], baseDir: null, project: ".", timeoutMs: 605_000 });
+  });
+});
+
+describe("t3_sweep and the Watchdog", () => {
+  const sweep = (caller = "watch") => Effect.runPromise(handleT3Tool(ports(), "t3_sweep", {}, caller));
+  const show = (state: { status?: string; activeRunId?: string | null; pendingRequestCount?: number }) =>
+    json({
+      thread: {
+        threadId: "t3-thread-1",
+        status: "idle",
+        activeRunId: null,
+        pendingRequestCount: 0,
+        settled: false,
+        ...state,
+      },
+      messages: [],
+    });
+
+  it("moves a working ticket whose T3 thread waits for a person to awaiting_human", async () => {
+    next = { exitCode: null, stdout: "", stderr: "", timedOut: true };
+    await run({ ticket: 1, message: "long work" });
+    expect(store.byNumber(1)?.state).toBe("working");
+    store.setT3Thread(store.byNumber(1)?.ticketId ?? "", "t3-thread-1", "coder");
+    next = show({ status: "running", activeRunId: "r1", pendingRequestCount: 1 });
+    const result = await sweep();
+    expect(result).toMatchObject({
+      ok: true,
+      value: { checked: 1, tickets: [{ ticket: 1, flag: "waits_for_person", state: "awaiting_human" }] },
+    });
+    expect(store.byNumber(1)?.humanAction).toContain("Answer it in the T3 Code app or web");
+  });
+
+  it("flags a working ticket with no active T3 run, and is for the Watchdog only", async () => {
+    next = json({ threadId: "t3-thread-1", runId: null, projectId: "p" });
+    store.setT3Thread(store.byNumber(1)?.ticketId ?? "", "t3-thread-1", "coder");
+    next = show({ status: "completed" });
+    expect(await sweep()).toMatchObject({ ok: true, value: { tickets: [{ flag: "idle_while_working" }] } });
+    expect(await sweep("coder")).toMatchObject({ ok: false });
+    expect(await sweep("router")).toMatchObject({ ok: false });
+  });
+
+  it("lets the Watchdog read any coding ticket's thread", async () => {
+    store.setT3Thread(store.byNumber(1)?.ticketId ?? "", "t3-thread-1", "coder");
+    next = show({});
+    expect(await Effect.runPromise(handleT3Tool(ports(), "t3_show", { ticket: 1 }, "watch"))).toMatchObject({
+      ok: true,
+    });
+  });
+
+  it("reads T3's thread detail and maps it to a flag", () => {
+    const state = t3ThreadState({
+      thread: {
+        status: "failed",
+        activeRunId: null,
+        pendingRequestCount: 0,
+        settled: true,
+        linkedPullRequest: { url: "https://github.com/a/b/pull/5" },
+      },
+    });
+    expect(state).toEqual({
+      status: "failed",
+      activeRunId: null,
+      pendingRequestCount: 0,
+      settled: true,
+      pullRequest: "https://github.com/a/b/pull/5",
+    });
+    const ticket = store.byNumber(1);
+    if (ticket) {
+      expect(sweepFlag(ticket, state)).toBe("run_failed");
+      expect(sweepFlag(ticket, null)).toBe("unreadable");
+    }
+    expect(t3ThreadState({ nothing: true })).toBeNull();
   });
 });
