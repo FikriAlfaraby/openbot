@@ -80,7 +80,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       account service on openbot.run checks, which the fork cannot change (see Findings).
 - [x] P.6 "Default updated" reaches the owner: a notice when a built-in rule that a persona
       overrides changed after an upstream sync.
-- [ ] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
+- [x] P.8 A new agent gets a starter `persona.yaml` (role from its title, goals from its
       description, tone "follow the person's language") when it is created, so every bot has a
       persona to edit; an existing `persona.yaml` is never replaced. Tests.
 - [ ] P.7 Role defaults from `fork-config.yaml` (item 2.2): a `router` gets the Router persona

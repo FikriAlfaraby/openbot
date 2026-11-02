@@ -14,6 +14,11 @@ stays unchanged.
 
 `<OpenBot>` is `~/OpenBot` on a desktop. See [`persona.example.yaml`](persona.example.yaml).
 
+A new agent (created in the app or by `create_agent`) gets a starter `persona.yaml` from its profile:
+role from the title (or the name), the first sentence of the description as goal and routing
+summary, and a tone that follows the person's language (item P.8). An existing file is never
+replaced.
+
 ## `persona.yaml` fields
 
 All fields are optional. An unknown field or override key makes the file invalid; the prompt then

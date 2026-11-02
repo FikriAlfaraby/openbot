@@ -234,6 +234,7 @@ import { reportOriginalFailure } from "./effect-boundary";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords } from "./fork/reply-rules";
 import { forkChatMaxWords, forkGateOf, forkRoleOf } from "./fork/router-policy";
+import { writeStarterPersona } from "./fork/starter-persona";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
 import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
@@ -2418,6 +2419,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     const result = yield* Effect.result(
       Effect.gen({ self: this }, function* () {
         yield* this.#prepareAgentWorkspace(agent);
+        // Fork: every new agent starts with a persona to edit (roadmap item P.8).
+        yield* writeStarterPersona(agent.workspacePath, agent);
         agent = yield* this.#assignNewAgentModel(agent, input, true);
         if (configure) agent = yield* configure(agent);
         yield* this.sendMessage({ agentId: agent.id, text: initialMessage, attachmentDraftIds: [] }, sender);
