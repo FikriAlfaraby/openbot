@@ -55,7 +55,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] 3.1d T3 Code over MCP (owner's wish): connect T3's `/mcp` on `localhost` to the Coder only,
       and finish the OAuth approval in OpenBot's own browser on the VPS, where the `localhost`
       redirect works; document it in `docs/fork/t3.md`. The CLI path of 3.1 stays the fallback.
-- [ ] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
+- [x] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
       stops, and can resume or close it.
 - [ ] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
       user, bot messages as inferred candidates. Tests.

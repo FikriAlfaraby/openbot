@@ -67,3 +67,12 @@ In every messaging turn of the Router, the prompt lists the tickets of that conv
 ended in the last 24 hours; at most 10) with their worker and open question, just before the
 message (`src/backend/fork/tickets/ticket-context.ts`). In a private chat, where pass-through does
 not apply, the Router sends a follow-up to the ticket's worker with `ticket_assign`.
+
+## Stopped tickets (item 3.2)
+
+When a worker's side-thread turn for a `working` ticket ends as failed or interrupted, the host
+moves the ticket to `blocked` and queues one note for the Router in the ticket's conversation
+(`src/backend/fork/tickets/stop-recovery.ts`, hook `turnEnded` of `AgentTasks`). The Router resumes
+it with `ticket_assign` or ends it with `ticket_close`, and tells the person only when the work
+cannot go on. One note per stopped turn; a completed turn needs none, because its answer already
+returns to the Router.

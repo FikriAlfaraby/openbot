@@ -53,6 +53,8 @@ export interface AgentTasksHooks {
   hold(agentId: string, taskId: string): string | null;
   /** A message is queued in a task: the queue and the drain take it. */
   queued(agentId: string): void;
+  /** Fork: a task's turn ended, for the ticket of the task (`fork/tickets/stop-recovery.ts`). */
+  turnEnded?(taskId: string, status: "completed" | "failed" | "interrupted", turnId: string): void;
 }
 
 /** Where `start_task` was called, as the tool router knows it. */
@@ -520,11 +522,11 @@ export class AgentTasks implements TaskLanes {
         const task = this.#taskOf(event.threadId);
         if (!task) return false;
         this.#progress.delete(task.taskId);
-        this.#store.setOutcome(
-          task.taskId,
-          event.status === "completed" ? "completed" : event.status === "failed" ? "failed" : "interrupted",
-        );
+        const outcome =
+          event.status === "completed" ? "completed" : event.status === "failed" ? "failed" : "interrupted";
+        this.#store.setOutcome(task.taskId, outcome);
         this.changed(task.agentId);
+        this.#hooks.turnEnded?.(task.taskId, outcome, event.turnId);
         // The waiters leave the map here, so a wait that a failed Stop never runs does not stay.
         const waiters = this.#turnEndWaiters.get(task.taskId);
         this.#turnEndWaiters.delete(task.taskId);

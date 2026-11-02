@@ -234,6 +234,7 @@ import { reportOriginalFailure } from "./effect-boundary";
 import { limitWords } from "./fork/reply-rules";
 import { forkChatMaxWords, forkRoleOf } from "./fork/router-policy";
 import { passThroughText, passThroughTicket } from "./fork/tickets/pass-through";
+import { recordStoppedTurn, type StoppedTicket, type TaskTurnStatus } from "./fork/tickets/stop-recovery";
 import { ticketContextBlock } from "./fork/tickets/ticket-context";
 import { ticketStoreFor } from "./fork/tickets/ticket-store";
 import type { HostMemory } from "./host-memory";
@@ -584,6 +585,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           this.#mailboxSync.emitQueue(agentId);
           this.#drain.scheduleDrain(agentId);
         },
+        turnEnded: (taskId, status, turnId) => this.#ticketTurnEnded(taskId, status, turnId),
       },
     });
     this.#tables = options.tables ?? null;
@@ -5118,6 +5120,45 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** Removes live provider state for an execution thread before its durable rows are deleted. */
+
+  /**
+   * Fork: a ticket whose worker turn failed or was interrupted becomes blocked, and the Router gets
+   * one note in the ticket's conversation, so it resumes or closes the work (item 3.2). Any failure
+   * here leaves the task as it was; the ticket stays visible to the Router and the Watchdog.
+   */
+  #ticketTurnEnded(taskId: string, status: TaskTurnStatus, turnId: string): void {
+    let stopped: StoppedTicket | null;
+    try {
+      stopped = recordStoppedTurn(ticketStoreFor(dirname(this.#store.automationRoot)), taskId, status, turnId);
+    } catch {
+      return;
+    }
+    if (!stopped) return;
+    const { ticket, text, idempotencyKey, originDeliveryId } = stopped;
+    const messagingReturn = originDeliveryId ? this.#mailbox.messagingOrigin(originDeliveryId) : null;
+    Effect.runFork(
+      Effect.gen({ self: this }, function* () {
+        const receipt = yield* this.#mailbox.enqueue({
+          sender: { kind: "agent", agentId: ticket.assigneeAgentId ?? ticket.routerAgentId },
+          recipientAgentIds: [ticket.routerAgentId],
+          text,
+          sourcePaths: [],
+          replyToMessageId: null,
+          expectsReply: false,
+          ...(messagingReturn ? { messagingReturn } : {}),
+          idempotencyKey,
+        });
+        for (const delivery of receipt.deliveries) {
+          this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+          this.#drain.scheduleDrain(delivery.recipientAgentId);
+        }
+      }).pipe(
+        Effect.catch(() => Effect.void),
+        Effect.catchDefect(() => Effect.void),
+        Effect.forkIn(this.#scope, { startImmediately: true }),
+      ),
+    );
+  }
 
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
   shapeChatAnswer(agentId: string, text: string): string {
