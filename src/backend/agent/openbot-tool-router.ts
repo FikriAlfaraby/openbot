@@ -39,6 +39,7 @@ import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
+import { filterDiscoveryForRouter, forkRoleOf, routerMayUse, routerRefusal } from "../fork/router-policy";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
@@ -351,6 +352,8 @@ export class OpenBotToolRouter {
               try {
                 this.#requireAgent(agentId);
                 result = discoverTools(params);
+                // Fork: a Router finds only the tools that it may call (docs/fork/notes/runtime.md).
+                if (forkRoleOf(this.#store.sharedRoot, agentId) === "router") result = filterDiscoveryForRouter(result);
               } catch {
                 client.respond(request.id, openBotToolFailure(sourceText("error.agent.toolRequestInvalid")));
                 return;
@@ -370,6 +373,18 @@ export class OpenBotToolRouter {
                 return;
               }
               params = resolved;
+            }
+          }
+          // Fork: the host refuses the tools of work for the Router, also through tool_call.
+          {
+            const callerId = this.#conversation.agentForThread(params.threadId);
+            if (
+              callerId &&
+              forkRoleOf(this.#store.sharedRoot, callerId) === "router" &&
+              !routerMayUse(params.namespace ?? "openbot", params.tool)
+            ) {
+              client.respond(request.id, openBotToolFailure(routerRefusal(params.namespace ?? "openbot", params.tool)));
+              return;
             }
           }
           if (params.namespace === "openbot" && (params.tool === "history_search" || params.tool === "history_read")) {

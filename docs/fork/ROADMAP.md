@@ -25,7 +25,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       tool. No code change.
 - [x] 2.2 Host-side fork config `<OpenBot>/fork-config.yaml`, outside agent workspaces: agent roles
       (`router`, `worker`, `watchdog`) by agent id. Validated, with tests. Agents cannot change it.
-- [ ] 2.3 Router enforcement: a `router` agent gets no shell or file tools from its provider and
+- [x] 2.3 Router enforcement: a `router` agent gets no shell or file tools from its provider and
       only routing tools from OpenBot; the host refuses other tools. Tests.
 - [ ] 2.4 Ticket store (`src/backend/tickets/`): tickets with states `open`, `working`,
       `awaiting_human`, `review`, `blocked`, `done`, `failed`, `cancelled`; an append-only event log;
@@ -48,6 +48,9 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
       use it for all coding work; T3 worktree cleanup and worktree location in `docs/fork/t3.md`.
 - [ ] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
       working tickets; a T3 question (exit 2) reaches the person through the Router.
+- [ ] 3.1d T3 Code over MCP (owner's wish): connect T3's `/mcp` on `localhost` to the Coder only,
+      and finish the OAuth approval in OpenBot's own browser on the VPS, where the `localhost`
+      redirect works; document it in `docs/fork/t3.md`. The CLI path of 3.1 stays the fallback.
 - [ ] 3.2 Stopped-task recovery (idea of charliedowler): the Router wakes when a ticket or task
       stops, and can resume or close it.
 - [ ] 3.3 Gate for Telegram: per-source mode `off` / `observe` / `auto`, allow-list per Telegram
@@ -84,6 +87,13 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [ ] 4.4 Storage: cleanup of ticket folders, archive to a bucket, daily backup script for
       `openbot.db` with the keyring (`docs/fork/storage.md`).
 
+## Default decisions (taken while the owner was away; review them)
+
+- The Router gets no external MCP servers, no Claude shell/file/web tools (`Bash`, `Read`, `Write`,
+  `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Task`, `Agent`, `Skill`), and only the OpenBot
+  tools in `ROUTER_OPENBOT_TOOLS` (`src/backend/fork/router-policy.ts`).
+- Tickets live in `openbot.db` (migration v50), not in a separate file.
+
 ## Findings
 
 - T3 Code MCP accepts only OAuth; `t3 thread` on the host needs no sign-in.
@@ -95,3 +105,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - A Telegram private chat is one thread; follow-ups there match tickets by the reply chain.
 - `fork-config.yaml` holds roles only for Workspace-only agents; a Full-access agent can edit any
   file. An invalid edit keeps the last valid roles (`src/backend/fork/fork-config.ts`).
+- Tools of external MCP servers go from the provider to the server directly, not through
+  `OpenBotToolRouter`; the Router is kept from them by giving it no MCP servers.

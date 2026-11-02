@@ -14,6 +14,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { redactText } from "@openbot/logging";
 import { automationRunCommand } from "../automation-command";
+import { ROUTER_ROLE_RULE } from "../fork/router-policy";
 import type { HomeSkill } from "../home-skills";
 import { type OverridableRuleKey, ruleText } from "./persona/overridable-rules";
 import type { PromptPersona } from "./persona/persona-file";
@@ -76,6 +77,8 @@ export interface DeveloperInstructionOptions {
   persona?: PromptPersona | null;
   /** Fork: the server-wide `global-instructions.md`. Omitted or empty, no block. */
   globalInstructions?: string;
+  /** Fork: the owner made this agent the Router in `fork-config.yaml`. */
+  router?: boolean;
 }
 
 /** The agent's instruction file, after its profile. */
@@ -310,6 +313,7 @@ export function developerInstructions(
     "<agent_profile>",
     profile,
     "</agent_profile>",
+    ...(options.router ? [ROUTER_ROLE_RULE] : []),
     ...personaSection(options.persona),
     ...instructionsFileSection(options.instructionsFile),
     ...(options.teammatesInTurns

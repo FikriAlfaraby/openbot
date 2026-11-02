@@ -88,6 +88,7 @@ import {
   isClaudeTaskNotification,
 } from "./conversation-snapshots";
 import { runCauseEffect } from "./effect-boundary";
+import { ROUTER_CLAUDE_DISALLOWED_TOOLS } from "./fork/router-policy";
 import { IdleThreadPool } from "./idle-thread-pool";
 import {
   agentMcpServers,
@@ -180,6 +181,8 @@ interface ThreadConfig {
   excludedFolders: string[];
   /** The agent, so the MCP sign-in proxy can name it to a server. See `mcpAgentParam`. */
   agentId: string | null;
+  /** Fork: the Router gets no shell, file or web tools (`src/backend/fork/router-policy.ts`). */
+  router: boolean;
 }
 
 interface ActiveTurn {
@@ -914,7 +917,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
             : {}),
           ...(config.profileGeneration
             ? { tools: [] }
-            : { disallowedTools: [...CLAUDE_NATIVE_SCHEDULING, ...CLAUDE_DUPLICATE_TOOLS] }),
+            : {
+                disallowedTools: [
+                  ...CLAUDE_NATIVE_SCHEDULING,
+                  ...CLAUDE_DUPLICATE_TOOLS,
+                  ...(config.router ? ROUTER_CLAUDE_DISALLOWED_TOOLS : []),
+                ],
+              }),
           settingSources: config.profileGeneration
             ? []
             : config.workspaceOnly
@@ -2208,6 +2217,7 @@ function readThreadConfig(params: unknown): ThreadConfig {
         ? params.excludedFolders.filter((value): value is string => isString(value))
         : [],
     agentId: mcpAgentParam(params),
+    router: isRecord(params) && params.forkRole === "router",
   };
 }
 

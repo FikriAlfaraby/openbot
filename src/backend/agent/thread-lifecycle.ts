@@ -19,6 +19,7 @@ import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
+import { forkRoleOf, ROUTER_CODEX_CONFIG } from "../fork/router-policy";
 import { type HomeSkill, listHomeSkills, skillFolderNames } from "../home-skills";
 import type { MailboxStore } from "../mailbox-store";
 import type { McpOperationError } from "../mcp-effects";
@@ -627,6 +628,7 @@ export class ThreadLifecycle {
       approvalPolicy: "on-request",
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
+      ...this.#forkRoleParam(agent),
       ...this.#computerUseParam(agent, client),
       ...this.#mcpAgentParam(agent, client),
       ...this.#instructions(
@@ -826,7 +828,8 @@ export class ThreadLifecycle {
         "features.goals": false;
         "features.code_mode.direct_only_tool_namespaces": string[];
         [variable: `shell_environment_policy.set.${string}`]: string;
-      } & ReturnType<typeof codexSandboxConfig>;
+      } & ReturnType<typeof codexSandboxConfig> &
+        Partial<typeof ROUTER_CODEX_CONFIG>;
     },
     ThreadOperationFailed
   > {
@@ -851,6 +854,8 @@ export class ThreadLifecycle {
           ...codexMcpNamespaces(servers),
         ],
         ...codexSandboxConfig(agent, this.#store.sharedRoot),
+        // Fork: no shell, patch or web tools for the Router.
+        ...(forkRoleOf(this.#store.sharedRoot, agent.id) === "router" ? ROUTER_CODEX_CONFIG : {}),
         ...Object.fromEntries(
           Object.entries(environment).map(([name, value]) => [`shell_environment_policy.set.${name}`, value]),
         ),
@@ -987,6 +992,10 @@ export class ThreadLifecycle {
           // to the file adds a new value. Only another file name, or a file with text, adds a value.
           ...(instructionsFile.fileName === "AGENTS.md" ? [] : [["instructions-file", instructionsFile.fileName]]),
           ...(instructionsFile.found?.text ? [["instructions", instructionsFile.found.text]] : []),
+          // Fork: a role change gives the agent other tools, so a loaded session is replaced.
+          ...(forkRoleOf(this.#store.sharedRoot, agent.id)
+            ? [["fork-role", forkRoleOf(this.#store.sharedRoot, agent.id)]]
+            : []),
           // Fork: a persona or global text adds a value, so that a change starts a session with it.
           ...(instructionsFile.persona.persona ? [["persona", instructionsFile.persona.persona.hash]] : []),
           ...(instructionsFile.persona.globalInstructions
@@ -1040,7 +1049,14 @@ export class ThreadLifecycle {
 
   /** The enabled servers this agent is given. Without Computer Use the fingerprint changes, so Codex replaces the session. */
   #agentMcpServers(agent: AgentSummary): readonly McpServerConfig[] {
+    // Fork: a Router gets no MCP servers; it routes work and does none (docs/fork/notes/runtime.md).
+    if (forkRoleOf(this.#store.sharedRoot, agent.id) === "router") return [];
     return agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
+  }
+
+  /** Fork: tells the provider client that this agent is the Router, which gets no work tools. */
+  #forkRoleParam(agent: AgentSummary): { forkRole?: "router" } {
+    return forkRoleOf(this.#store.sharedRoot, agent.id) === "router" ? { forkRole: "router" } : {};
   }
 
   /**
@@ -1155,6 +1171,7 @@ export class ThreadLifecycle {
       instructionsFile: instructionsFile.file,
       persona: instructionsFile.persona.persona,
       globalInstructions: instructionsFile.persona.globalInstructions,
+      router: forkRoleOf(this.#store.sharedRoot, agent.id) === "router",
     };
     const instructions = developerInstructions(
       agent,
@@ -1236,6 +1253,7 @@ export class ThreadLifecycle {
       approvalPolicy: "on-request",
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
+      ...this.#forkRoleParam(agent),
       ...this.#computerUseParam(agent, client),
       ...this.#mcpAgentParam(agent, client),
       ...this.#instructions(

@@ -22,3 +22,13 @@ agents:
   `Shared` and temporary folders. Keep the Router and the workers on Workspace only.
 - What each role changes comes with the next items: the Router's tool limits (2.3), ticket tools
   (2.5), and the Watchdog's tools (4.1).
+
+## What the role `router` changes (item 2.3)
+
+- OpenBot refuses every OpenBot tool outside `ROUTER_OPENBOT_TOOLS`, also through `tool_call`,
+  and `tool_search` shows only allowed tools.
+- Claude gets no `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Task`,
+  `Agent` or `Skill`; Codex gets no shell, patch or web tools.
+- The Router gets no MCP servers (no T3 Code, no Computer Use).
+- Its developer instructions carry the Router rule after its profile.
+- A role change replaces a loaded provider session, so the new tools apply at once.
