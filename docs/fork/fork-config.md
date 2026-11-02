@@ -114,6 +114,10 @@ that conversation with their state, worker and open question, then the ones that
 24 hours. No Router turn runs, so it costs no tokens and answers also while the Router works. In any
 other agent's conversation the message goes to the agent as before.
 
+`/tiket 12` (or `/tiket #12`) shows one ticket of that conversation (item 5.7): its state, worker,
+open question, the worker's last summary (600 characters at most) and its last 5 steps. A ticket of
+another conversation is not shown. The Router's and the Watchdog's notes are left out.
+
 ## Check the setup (item 5.3)
 
 ```sh

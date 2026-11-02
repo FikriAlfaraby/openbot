@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { chatCommandOf, ticketStatusReply } from "./chat-commands";
+import { chatCommandOf, ticketDetailReply, ticketStatusReply } from "./chat-commands";
 import { parseForkConfig } from "./fork-config";
 import { messagingThreadKey } from "./tickets/pass-through";
 import { TicketStore } from "./tickets/ticket-store";
@@ -37,7 +37,7 @@ afterEach(() => {
 describe("chatCommandOf", () => {
   it("knows /tiket, /tickets and /status, also with a bot name", () => {
     for (const text of ["/tiket", "/tickets", "/status", " /TIKET ", "/tiket@OpenBotTim_bot"])
-      expect(chatCommandOf(text)).toBe("tickets");
+      expect(chatCommandOf(text)).toEqual({ kind: "tickets" });
     for (const text of ["tiket", "/tiket baru tolong", "/start", "cek /tiket", "/tiket@bad name"])
       expect(chatCommandOf(text)).toBeNull();
   });
@@ -76,5 +76,44 @@ describe("ticketStatusReply", () => {
     const parsed = parseForkConfig("version: 1\nchat:\n  commandLanguage: en\n");
     expect(parsed.ok && parsed.config.commandLanguage).toBe("en");
     expect(parseForkConfig("version: 1\nchat:\n  commandLanguage: fr\n").ok).toBe(false);
+  });
+});
+
+describe("/tiket <number> (item 5.7)", () => {
+  it("reads a ticket number, with or without #", () => {
+    expect(chatCommandOf("/tiket 12")).toEqual({ kind: "ticket", number: 12 });
+    expect(chatCommandOf("/tiket@OpenBotTim_bot #7")).toEqual({ kind: "ticket", number: 7 });
+    expect(chatCommandOf("/tiket 12 tolong")).toBeNull();
+  });
+
+  it("shows one ticket of this conversation with its question, summary and steps", () => {
+    const ask = ticket("Pilih desain");
+    store.assign(ask.ticketId, "coder", "task-1", "router");
+    store.note(ask.ticketId, "watch", "internal note");
+    store.transition(ask.ticketId, "awaiting_human", {
+      actor: "coder",
+      humanAction: "A atau B?",
+      summary: "Dua desain siap: A biru, B hijau.",
+    });
+    const reply = ticketDetailReply(store, "link-1", ask.number, names, "id");
+    const at = `${now().toISOString().slice(0, 10)} ${now().toISOString().slice(11, 16)} UTC`;
+    expect(reply.split("\n")).toEqual([
+      `#${ask.number} Pilih desain — menunggu jawaban (Coder)`,
+      "Menunggu jawaban: A atau B?",
+      "Ringkasan: Dua desain siap: A biru, B hijau.",
+      "Langkah terakhir:",
+      `- ${at} dibuat`,
+      `- ${at} diberikan ke Coder`,
+      `- ${at} menunggu jawaban`,
+    ]);
+    expect(reply).not.toContain("internal note");
+  });
+
+  it("does not show a ticket of another conversation", () => {
+    const other = ticket("Rahasia", "link-2");
+    expect(ticketDetailReply(store, "link-1", other.number, names, "id")).toBe(
+      `Tiket #${other.number} tidak ada di percakapan ini.`,
+    );
+    expect(ticketDetailReply(store, "link-1", 999, names, "en")).toBe("Ticket #999 is not in this conversation.");
   });
 });

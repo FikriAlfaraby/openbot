@@ -14,3 +14,4 @@
 - Add `openbot doctor` on a self-hosted server, which runs the fork setup check inside OpenBot.
 - Let the Watchdog check tickets that failed in the last day and resume a transient failure at most twice.
 - Show each agent's 24-hour spending against its budget in `openbot doctor`, with a warning from 80%.
+- Answer `/tiket <number>` with one ticket's question, summary and last steps.

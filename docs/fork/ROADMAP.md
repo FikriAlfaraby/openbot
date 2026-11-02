@@ -127,6 +127,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
       budget of item 4.2 held a queue with no sign before). Each agent with a budget shows its
       24-hour tokens and dollars against the limit, a warning from 80% (`budgetFinding` in
       `src/backend/fork/budget.ts`).
+- [x] 5.7 `/tiket <number>` (follow-up of 5.2): the list told the state, but the result or the
+      reason still needed a Router turn. The host now shows one ticket's question, summary and last
+      steps, only for tickets of the same conversation (`ticketDetailReply`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -185,6 +188,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 
 - Item 5.6: the spending lines are only in `openbot doctor` on a server (they need the running
   OpenBot's database), not in `bun scripts/fork-doctor.ts`. The warning share is fixed at 80%.
+
+- Item 5.7: `/tiket <n>` leaves out ticket notes (the Router's and Watchdog's working log) and
+  shows tickets of the same conversation only. Times are in UTC, since the host does not know the
+  reader's time zone.
 
 ## Findings
 

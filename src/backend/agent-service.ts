@@ -233,7 +233,7 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
-import { chatCommandOf, ticketStatusReply } from "./fork/chat-commands";
+import { chatCommandOf, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
 import type { DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
@@ -5366,15 +5366,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
   /** Fork: the host's reply to a chat command in the Router's conversation (item 5.2), or null. */
   chatCommandReply(link: MessagingLink, text: string): string | null {
-    if (!chatCommandOf(text) || forkRoleOf(this.#store.sharedRoot, link.agentId) !== "router") return null;
+    const command = chatCommandOf(text);
+    if (!command || forkRoleOf(this.#store.sharedRoot, link.agentId) !== "router") return null;
     try {
       const names = new Map(this.#store.list().map((agent) => [agent.id, agent.name]));
-      return ticketStatusReply(
-        ticketStoreFor(dirname(this.#store.automationRoot)),
-        link.linkId,
-        (id) => names.get(id) ?? null,
-        forkCommandLanguage(this.#store.sharedRoot),
-      );
+      const store = ticketStoreFor(dirname(this.#store.automationRoot));
+      const language = forkCommandLanguage(this.#store.sharedRoot);
+      const name = (id: string) => names.get(id) ?? null;
+      return command.kind === "ticket"
+        ? ticketDetailReply(store, link.linkId, command.number, name, language)
+        : ticketStatusReply(store, link.linkId, name, language);
     } catch {
       return null;
     }
