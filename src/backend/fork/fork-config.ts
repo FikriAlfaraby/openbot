@@ -33,11 +33,30 @@ const ChatSettings = Schema.Struct({
   maxWords: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 20, maximum: 1_000 }))),
 });
 
+const PlainText = (max: number) => Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(max));
+
+/** T3 Code, the coding executor (item 3.1b, docs/fork/t3.md). */
+const T3Settings = Schema.Struct({
+  /** The command and its first arguments, such as [t3] or [sudo, -u, t3, t3]. */
+  command: Schema.optionalKey(Schema.Array(PlainText(512)).check(Schema.isMinLength(1), Schema.isMaxLength(8))),
+  /** T3 Code's home folder, for --base-dir. */
+  baseDir: Schema.optionalKey(PlainText(1_024)),
+  /** The project: a T3 project id or a path inside it. */
+  project: Schema.optionalKey(PlainText(1_024)),
+  /** The branch that a new ticket's worktree starts from. */
+  baseBranch: Schema.optionalKey(PlainText(200)),
+  /** How long one t3_run waits for the run before it reports that the run goes on. */
+  waitSeconds: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 10, maximum: 3_600 }))),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   agents: Schema.optionalKey(Schema.Record(AgentId, AgentEntry)),
   chat: Schema.optionalKey(ChatSettings),
+  t3: Schema.optionalKey(T3Settings),
 });
+
+export type ForkT3Settings = typeof T3Settings.Type;
 
 export type ForkConfigDocument = typeof ForkConfigDocument.Type;
 
@@ -46,9 +65,11 @@ export interface ForkConfig {
   roles: ReadonlyMap<string, ForkRole>;
   /** The most words of a Router chat reply; null for the default. */
   chatMaxWords: number | null;
+  /** T3 Code settings; null when the file names none. */
+  t3: ForkT3Settings | null;
 }
 
-export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null };
+export const EMPTY_FORK_CONFIG: ForkConfig = { roles: new Map(), chatMaxWords: null, t3: null };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
 
@@ -70,7 +91,10 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
   for (const [agentId, entry] of Object.entries(decoded.success.agents ?? {})) roles.set(agentId, entry.role);
   const routers = [...roles.values()].filter((role) => role === "router").length;
   if (routers > 1) return { ok: false, issue: "Only one agent can have the role router." };
-  return { ok: true, config: { roles, chatMaxWords: decoded.success.chat?.maxWords ?? null } };
+  return {
+    ok: true,
+    config: { roles, chatMaxWords: decoded.success.chat?.maxWords ?? null, t3: decoded.success.t3 ?? null },
+  };
 }
 
 export interface ForkConfigState {

@@ -40,7 +40,15 @@ import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
-import { filterDiscoveryForRouter, forkRoleOf, routerMayUse, routerRefusal } from "../fork/router-policy";
+import {
+  filterDiscoveryForRouter,
+  forkRoleOf,
+  forkT3Settings,
+  routerMayUse,
+  routerRefusal,
+} from "../fork/router-policy";
+import { runT3 } from "../fork/t3/t3-cli";
+import { handleT3Tool, isT3Tool } from "../fork/t3/t3-tools";
 import { ticketStoreFor } from "../fork/tickets/ticket-store";
 import { handleTicketTool, isTicketTool, type TicketToolPorts } from "../fork/tickets/ticket-tools";
 import type { MailboxStore } from "../mailbox-store";
@@ -764,6 +772,21 @@ export class OpenBotToolRouter {
     if (isTicketTool(params.tool)) {
       const outcome = yield* handleTicketTool(
         this.#ticketPorts(params, senderAgentId),
+        params.tool,
+        params.arguments,
+        senderAgentId,
+      ).pipe(Effect.catch((cause) => Effect.fail(new ToolOperationFailed({ cause }))));
+      return outcome.ok ? openBotToolResult(outcome.value) : openBotToolFailure(outcome.error);
+    }
+    // Fork: the coding executor's tools (src/backend/fork/t3/t3-tools.ts).
+    if (isT3Tool(params.tool)) {
+      const outcome = yield* handleT3Tool(
+        {
+          store: ticketStoreFor(dirname(this.#store.automationRoot)),
+          roleOf: (agentId) => forkRoleOf(this.#store.sharedRoot, agentId),
+          settings: () => forkT3Settings(this.#store.sharedRoot),
+          call: runT3,
+        },
         params.tool,
         params.arguments,
         senderAgentId,

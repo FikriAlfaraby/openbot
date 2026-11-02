@@ -5,7 +5,7 @@
 // or web tools.
 
 import { dirname } from "node:path";
-import { ForkConfigReader, type ForkRole } from "./fork-config";
+import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
 
 /** The OpenBot tools that a Router may call, by `namespace.tool`. Everything else is refused. */
@@ -121,6 +121,11 @@ function readerFor(sharedRoot: string): ForkConfigReader {
 /** The role of an agent from `fork-config.yaml` in the OpenBot folder. */
 export function forkRoleOf(sharedRoot: string, agentId: string): ForkRole | null {
   return readerFor(sharedRoot).roleOf(agentId);
+}
+
+/** The T3 Code settings of `fork-config.yaml`, or null (item 3.1b). */
+export function forkT3Settings(sharedRoot: string): ForkT3Settings | null {
+  return readerFor(sharedRoot).current().config.t3;
 }
 
 /** The most words of a Router reply in a chat channel (item 2.7). */

@@ -47,7 +47,7 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 - [x] 3.1 T3 Code executor, part 1: `scripts/fork/t3-exec.ts` wraps `t3 thread start/send/show
       --wait --json` (base branch → `--worktree`), with a fake `t3` for tests; exit 0 → `review` or
       `done`, 1 → `failed`, 2 → `awaiting_human`. Notes on the user that runs `t3` vs `openbot`.
-- [ ] 3.1b T3 Code executor, part 2: the ticket keeps its T3 thread id; a follow-up on the ticket
+- [x] 3.1b T3 Code executor, part 2: the ticket keeps its T3 thread id; a follow-up on the ticket
       goes to the same T3 thread (`t3 thread send`); the Coder persona and a skill tell the Coder to
       use it for all coding work; T3 worktree cleanup and worktree location in `docs/fork/t3.md`.
 - [ ] 3.1c T3 Code executor, part 3: the Watchdog reads T3 thread state (`t3 thread show`) for
@@ -105,7 +105,8 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
 
 - The six ticket tools raise the agent context baseline (`tools/agent-context/budget.json`) by 133
   bytes of always-visible text (tool names in `tool_search`) and about 3.3 KB of searchable catalog.
-  Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature.
+  Upstream's rule is "do not raise the baseline"; the fork raises it once for this feature. The two
+  T3 tools (item 3.1b) raise it again by 33 visible bytes and about 1.3 KB of catalog.
 
 ## Findings
 
@@ -131,3 +132,5 @@ sender's language, hard fork (upstream merge compatibility is nice to have, not 
   `{ threadId, runId, status, reply, error }`; `--` ends the flags (`docs/fork/t3.md`).
 - The packaged app has no `scripts/` folder, so the T3 executor is backend code
   (`src/backend/fork/t3/t3-cli.ts`), called by OpenBot tools in item 3.1b, not a script.
+- A `t3_run` that outlasts its wait (`t3.waitSeconds`, default 600 s) leaves the ticket in `working`:
+  the run goes on in T3 Code; only the CLI call ends.
