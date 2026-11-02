@@ -8,6 +8,7 @@ import { AgentApiKeys } from "../backend/agent-api-keys";
 import { AgentDatabaseSupervisor } from "../backend/agent-data/agent-database-supervisor";
 import { AgentTables } from "../backend/agent-data/agent-tables";
 import { AgentRoutineStore } from "../backend/agent-routine-store";
+import { runForkDoctor } from "../backend/fork/doctor-node";
 import { DiscordConnectFailed, toDiscordConnectFailed } from "../backend/messaging/discord/discord-connect";
 import { SlackConnectFailed, toSlackConnectFailed } from "../backend/messaging/slack/slack-connect";
 import { routineFlowRoutines } from "../backend/routine-flows/routine-flow-routines";
@@ -66,7 +67,7 @@ import { RemoteWorkflowError, toRemoteWorkflowError } from "./remote-service-eff
 import { existsSync } from "node:fs";
 import { readdir, rm } from "node:fs/promises";
 import { homedir, hostname, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { selfHostedApiOrigin } from "@openbot/contracts/invite-links";
 import type {
   AgentStatus,
@@ -3255,6 +3256,7 @@ export async function createApplicationServices({
         host,
         memory: hostMemory,
         onError: (message, error) => logger.warn(message, toLogValue(error)),
+        forkDoctor: () => runForkDoctor(dirname(store.sharedRoot)),
       })
     : null;
   if (serverMode) {

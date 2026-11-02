@@ -116,6 +116,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
       non-IT team; a bad `fork-config.yaml` edit or a missing persona showed only as a bot that
       misbehaves). Checks roles, folders, personas, T3, gate, budget and backup, with a fix each
       (`src/backend/fork/doctor.ts`).
+- [x] 5.4 `openbot doctor` on an installed server (follow-up of 5.3: the server has no `bun`). The
+      control socket answers `GET /v1/fork/doctor` from inside OpenBot (`src/main/server-mode.ts`,
+      `src/backend/fork/doctor-node.ts`, `scripts/hosting/openbot`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -231,4 +234,6 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
   on that path, after the cut post. A platform that refuses the file shows the usual "files
   skipped" note.
 - Item 5.3: the doctor runs with `bun` from a clone of the repo; the installed server
-  (`/opt/OpenBot`) has no `bun`. A later item can ship it as an `openbot doctor` subcommand.
+  (`/opt/OpenBot`) has no `bun`. Fixed in item 5.4 with `openbot doctor`.
+- Item 5.4: upstream has no tests for `ServerMode`; the route's answer format and the doctor on a
+  real folder are tested, and the CLI was run against a fake control socket.

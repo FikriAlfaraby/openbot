@@ -117,9 +117,13 @@ other agent's conversation the message goes to the agent as before.
 ## Check the setup (item 5.3)
 
 ```sh
-bun scripts/fork-doctor.ts                     # /var/lib/openbot/OpenBot when it exists, else ~/OpenBot
+sudo openbot doctor                            # on an installed server (item 5.4)
+bun scripts/fork-doctor.ts                     # from a clone: /var/lib/openbot/OpenBot or ~/OpenBot
 bun scripts/fork-doctor.ts /path/to/OpenBot
 ```
+
+`openbot doctor` asks the running OpenBot over its control socket, so the server needs no `bun`;
+OpenBot must be running.
 
 It reads `fork-config.yaml`, the agent folders, each role's `persona.yaml`, `global-instructions.md`,
 the T3 Code command, the Telegram gate, the budget and the backup, and prints one line per check

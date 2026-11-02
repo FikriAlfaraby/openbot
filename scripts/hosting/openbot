@@ -31,6 +31,8 @@ Usage: openbot <command>
   logout                         Sign out. The server stops until the next sign-in.
   name <name>                    Change the server name.
   logs [-f]                      Show the OpenBot log.
+  doctor                         Check the fork setup: roles, personas, T3 Code, the gate,
+                                 the budget and the backup.
   start | stop | restart         Control the OpenBot service (sudo).
   update                         Install the newest release now (sudo).
   uninstall                      Sign out and remove OpenBot. The data stays (sudo).
@@ -334,6 +336,14 @@ case $command in
     ;;
   mobile-connect) mobile_connect_command ;;
   logs) logs_command "$@" ;;
+  doctor)
+    # Fork (item 5.4): the check runs inside OpenBot, so the server needs no bun.
+    control GET /v1/fork/doctor
+    check_answer || exit 1
+    value report | base64 -d
+    echo
+    [ "$(value errors)" = 0 ] || exit 1
+    ;;
   start | stop | restart)
     require_host "run docker $command <container> on the host"
     require_root "$command"

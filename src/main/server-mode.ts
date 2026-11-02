@@ -27,6 +27,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect } from "effect";
 import QRCode from "qrcode";
 import { runCauseEffect } from "../backend/effect-boundary";
+import { doctorAnswerLines } from "../backend/fork/doctor-node";
 import type { CentralAuthManager } from "./central-auth-manager";
 import type { HostService } from "./host-service";
 import { readBodyWithin } from "./http-body";
@@ -75,6 +76,8 @@ export interface ServerModeOptions {
   /** The memory guard, so that `status` shows the memory ceiling and the turn limit. */
   memory: Pick<ServerMemory, "level" | "sample" | "turnLimit"> | null;
   onError: (message: string, error: unknown) => void;
+  /** Fork (item 5.4): the setup check of `openbot doctor`. Absent: the route answers not_found. */
+  forkDoctor?: () => { report: string; errors: number };
   /** Tests only. */
   uid?: number;
 }
@@ -215,6 +218,11 @@ export class ServerMode {
         return runCauseEffect(this.#rename(body.get("name") ?? ""));
       case "POST /v1/mobile-connect":
         return runCauseEffect(this.#mobileConnect());
+      case "GET /v1/fork/doctor": {
+        const doctor = this.#options.forkDoctor?.();
+        if (!doctor) return failure(404, "not_found");
+        return { status: 200, lines: doctorAnswerLines(doctor) };
+      }
       case "POST /v1/logout":
         await runCauseEffect(
           this.#options.centralAuth.logout().pipe(Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause }))),
