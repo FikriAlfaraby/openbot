@@ -38,7 +38,8 @@ jobs:
     name: Validate release tag
     # Gating the one job every build and the publish depend on keeps a host signing run off the
     # release path entirely, rather than relying on each of them to opt out.
-    if: github.event_name == 'push' || inputs.mode == 'dry-run'
+    # Fork: a fork builds with fork-release.yml; this release needs the upstream secrets.
+    if: github.repository == 'nightly-labs/openbot' && (github.event_name == 'push' || inputs.mode == 'dry-run')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

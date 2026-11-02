@@ -20,7 +20,8 @@ electronFuses:
   grantFileProtocolExtraPrivileges: false
 publish:
   provider: github
-  owner: nightly-labs
+  # Fork: updates come from the fork's releases (.github/workflows/fork-release.yml).
+  owner: FikriAlfaraby
   repo: openbot
 files:
   - out/**/*

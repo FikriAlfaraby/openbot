@@ -1,0 +1,194 @@
+# Fork (FikriAlfaraby/openbot): builds the Linux server release that `scripts/install-server.sh` and
+# `openbot-hosted-update` on the VPS install. Upstream's `release.yml` needs the upstream signing
+# secrets and Discord role, so it runs only in nightly-labs/openbot; this workflow runs only in a fork.
+#
+# Version scheme: `<upstream major>.<upstream minor>.<upstream patch × 1000 + fork build>`, for
+# example 0.58.1 for the first fork build of upstream 0.58.0, and 0.58.3001 for the first fork
+# build of upstream 0.58.3. The server updater accepts only `X.Y.Z` and compares with `sort -V`, so
+# this keeps every fork release newer than the one before it, also across upstream syncs.
+# See docs/fork/release.md.
+
+name: Fork release (Linux server)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a GitHub release (off builds the AppImages only)
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate fork release
+    if: github.repository != 'nightly-labs/openbot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      release_version: ${{ steps.release.outputs.version }}
+      release_tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the version and the tag
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'require("./package.json").version')"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json version $version is not X.Y.Z, which the server updater requires." >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Build Linux ${{ matrix.arch }}
+    needs: validate
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+            suffix: linux
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            suffix: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Install a virtual display for the launch check
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes xvfb
+
+      - name: Install provider control artifacts
+        run: |
+          bun scripts/install-codex-runtime.ts linux ${{ matrix.arch }}
+          bun scripts/install-claude-runtime.ts linux ${{ matrix.arch }}
+          bun scripts/install-grok-runtime.ts linux ${{ matrix.arch }}
+
+      - name: Build AppImage
+        run: bun run ${{ matrix.arch == 'arm64' && 'dist:linux:arm64' || 'dist:linux' }}
+
+      - name: Permit the Electron sandbox for the verification build
+        run: |
+          set -euo pipefail
+          sudo chown root:root "dist/$SUFFIX-unpacked/chrome-sandbox"
+          sudo chmod 4755 "dist/$SUFFIX-unpacked/chrome-sandbox"
+          sudo tee /etc/apparmor.d/openbot-verify >/dev/null <<PROFILE
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile openbot-verify "$GITHUB_WORKSPACE/dist/$SUFFIX-unpacked/openbot" flags=(unconfined) {
+            userns,
+          }
+          PROFILE
+          sudo apparmor_parser -r /etc/apparmor.d/openbot-verify
+        env:
+          SUFFIX: ${{ matrix.suffix }}
+
+      - name: Verify packaged application metadata and launch
+        run: xvfb-run -a bun run verify:package:linux "dist/${{ matrix.suffix }}-unpacked" --require-update-metadata
+
+      - name: Verify AppImage and updater metadata
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          appImages=(dist/*.AppImage)
+          if [ "${#appImages[@]}" -ne 1 ] || [ ! -f "dist/latest-$SUFFIX.yml" ]; then
+            echo "Expected one AppImage and latest-$SUFFIX.yml." >&2
+            exit 1
+          fi
+          [ -x "${appImages[0]}" ] || { echo "The AppImage is not executable." >&2; exit 1; }
+          grep -Fq "version: $RELEASE_VERSION" "dist/latest-$SUFFIX.yml"
+          grep -Fq ".AppImage" "dist/latest-$SUFFIX.yml"
+          bun run verify:update-artifacts "$SUFFIX"
+          cd dist
+          shasum -a 256 ./*.AppImage | sed 's| \./| |' > "SHA256SUMS-$SUFFIX.txt"
+        env:
+          SUFFIX: ${{ matrix.suffix }}
+
+      - name: Upload Linux release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.suffix }}
+          path: |
+            dist/*.AppImage
+            dist/latest-${{ matrix.suffix }}.yml
+            dist/SHA256SUMS-${{ matrix.suffix }}.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish fork release
+    needs: [validate, linux]
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+    steps:
+      - name: Download Linux x64 release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-linux
+          path: release-assets
+
+      - name: Download Linux arm64 release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-linux-arm64
+          path: release-assets
+
+      - name: Publish GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          cat SHA256SUMS-linux.txt SHA256SUMS-linux-arm64.txt > SHA256SUMS.txt
+          artifacts=(./*.AppImage ./latest-linux.yml ./latest-linux-arm64.yml ./SHA256SUMS.txt)
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${artifacts[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" "${artifacts[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "OpenBot fork $RELEASE_TAG" --latest \
+              --notes "Linux server build of the fork. Install: see docs/fork/release.md."
+          fi

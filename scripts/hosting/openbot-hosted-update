@@ -27,7 +27,8 @@ export LC_ALL=C DEBIAN_FRONTEND=noninteractive
 umask 022
 
 INSTALL=/opt/OpenBot
-RELEASES=https://github.com/nightly-labs/openbot/releases
+# Fork: the fork builds its own Linux server releases (docs/fork/release.md).
+RELEASES=https://github.com/FikriAlfaraby/openbot/releases
 LOCK=/run/openbot-update.lock
 # Not in a directory that boat saves, so a download that a stop interrupts does not stay.
 SCRATCH=/var/tmp
