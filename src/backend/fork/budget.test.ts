@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { budgetNote, budgetSpent, ForkBudget, type Spend } from "./budget";
+import { budgetFinding, budgetNote, budgetShare, budgetSpent, ForkBudget, type Spend } from "./budget";
+import { runForkDoctor } from "./doctor-node";
 import { FORK_CONFIG_FILE_NAME, parseForkConfig } from "./fork-config";
 import { forkBudgetOf, forkRoleOf } from "./router-policy";
 
@@ -113,6 +114,33 @@ describe("budget in fork-config.yaml", () => {
       expect(forkBudgetOf(sharedRoot, "coder")).toEqual({ dailyTokens: 500_000, dailyUsd: 5 });
       expect(forkBudgetOf(sharedRoot, "router")).toEqual({ dailyTokens: null, dailyUsd: 5 });
       expect(forkRoleOf(sharedRoot, "coder")).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("budget in openbot doctor (item 5.6)", () => {
+  it("is ok below 80%, a warning near the limit and at it", () => {
+    const limit = { dailyTokens: 1_000, dailyUsd: 10 };
+    expect(budgetShare({ tokens: 500, costUsd: 9 }, limit)).toBeCloseTo(0.9);
+    expect(budgetFinding("Coder", { tokens: 100, costUsd: 1 }, limit)).toMatchObject({
+      level: "ok",
+      detail: "Coder: 100 of 1000 tokens, $1.00 of $10.00 in 24 hours (10%).",
+    });
+    expect(budgetFinding("Coder", { tokens: 850, costUsd: 1 }, limit)).toMatchObject({ level: "warn" });
+    expect(budgetFinding("Coder", { tokens: 850, costUsd: 1 }, limit).detail).toContain("Near its daily budget");
+    expect(budgetFinding("Coder", { tokens: 0, costUsd: 10 }, limit).detail).toContain("Its queue waits");
+  });
+
+  it("joins the server's findings to the file checks", () => {
+    const root = mkdtempSync(join(tmpdir(), "openbot-budget-doctor-"));
+    try {
+      mkdirSync(join(root, "Agents"));
+      const extra = [budgetFinding("Coder", { tokens: 0, costUsd: 10 }, { dailyTokens: null, dailyUsd: 10 })];
+      const result = runForkDoctor(root, extra);
+      expect(result.report).toContain("warn  spend: Coder: $10.00 of $10.00 in 24 hours (100%).");
+      expect(result.errors).toBe(0);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

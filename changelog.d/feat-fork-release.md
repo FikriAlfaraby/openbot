@@ -13,3 +13,4 @@
 - Add `bun scripts/fork-doctor.ts`, a read-only check of the fork setup with a fix for each issue.
 - Add `openbot doctor` on a self-hosted server, which runs the fork setup check inside OpenBot.
 - Let the Watchdog check tickets that failed in the last day and resume a transient failure at most twice.
+- Show each agent's 24-hour spending against its budget in `openbot doctor`, with a warning from 80%.

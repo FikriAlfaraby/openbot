@@ -123,6 +123,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
       rechecked until resolved). It used to see live tickets only, so a T3 run that failed on an API
       error stayed failed; now it sees failures of the last 24 hours and may resume each at most
       twice (`src/backend/fork/tickets/watchdog.ts`).
+- [x] 5.6 Spending in `openbot doctor` (product need: a nonprofit runs all bots on one API key; the
+      budget of item 4.2 held a queue with no sign before). Each agent with a budget shows its
+      24-hour tokens and dollars against the limit, a warning from 80% (`budgetFinding` in
+      `src/backend/fork/budget.ts`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -178,6 +182,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 - Item 5.5: the cap of 2 counts every resume by the Watchdog on that ticket, also resumes of a stuck
   ticket, so a ticket cannot cycle between failed and working on the Watchdog alone. Fixed numbers:
   24 hours, 2 resumes.
+
+- Item 5.6: the spending lines are only in `openbot doctor` on a server (they need the running
+  OpenBot's database), not in `bun scripts/fork-doctor.ts`. The warning share is fixed at 80%.
 
 ## Findings
 

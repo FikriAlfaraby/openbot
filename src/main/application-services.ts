@@ -3256,7 +3256,7 @@ export async function createApplicationServices({
         host,
         memory: hostMemory,
         onError: (message, error) => logger.warn(message, toLogValue(error)),
-        forkDoctor: () => runForkDoctor(dirname(store.sharedRoot)),
+        forkDoctor: () => runForkDoctor(dirname(store.sharedRoot), service.forkBudgetFindings()),
       })
     : null;
   if (serverMode) {

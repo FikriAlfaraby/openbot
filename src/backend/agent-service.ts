@@ -232,8 +232,9 @@ import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
-import { budgetNote, ForkBudget } from "./fork/budget";
+import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
 import { chatCommandOf, ticketStatusReply } from "./fork/chat-commands";
+import type { DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
 import {
@@ -5318,6 +5319,23 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       onHeld: (agentId, spend, limit) => logger.warn(budgetNote(agentId, spend, limit)),
     });
     return this.#forkBudget;
+  }
+
+  /** Fork (item 5.6): the 24-hour spending of each agent with a budget, for `openbot doctor`. */
+  forkBudgetFindings(): DoctorFinding[] {
+    const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+    const findings: DoctorFinding[] = [];
+    for (const agent of this.#store.list()) {
+      if (agent.hiddenAt !== undefined) continue;
+      const limit = forkBudgetOf(this.#store.sharedRoot, agent.id);
+      if (!limit) continue;
+      try {
+        findings.push(budgetFinding(agent.name, this.#store.database.usage.readSpendSince(agent.id, since), limit));
+      } catch {
+        findings.push({ level: "warn", check: "spend", detail: `${agent.name}: the spending could not be read.` });
+      }
+    }
+    return findings;
   }
 
   /** Fork: whether an agent's daily budget holds its queue. A failed read holds nothing. */

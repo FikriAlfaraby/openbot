@@ -7,8 +7,11 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { type DoctorFinding, doctorReport, forkDoctor } from "./doctor";
 
-export function runForkDoctor(openbotRoot: string): { findings: DoctorFinding[]; report: string; errors: number } {
-  const findings = forkDoctor({
+export function runForkDoctor(
+  openbotRoot: string,
+  extra: readonly DoctorFinding[] = [],
+): { findings: DoctorFinding[]; report: string; errors: number } {
+  const checked = forkDoctor({
     readText: (path) => {
       try {
         return readFileSync(join(openbotRoot, path), "utf8");
@@ -28,6 +31,8 @@ export function runForkDoctor(openbotRoot: string): { findings: DoctorFinding[];
     exists: (path) => existsSync(path),
     platform: process.platform,
   });
+  // Checks that need the running OpenBot, such as the spending of each agent (item 5.6).
+  const findings = [...checked, ...extra];
   return {
     findings,
     report: doctorReport(findings),

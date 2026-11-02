@@ -101,3 +101,43 @@ export class ForkBudget {
     return [...this.#held];
   }
 }
+
+/** Spending at or above this share of a limit is a warning in `openbot doctor` (item 5.6). */
+export const BUDGET_WARN_SHARE = 0.8;
+
+/** The highest share of a limit that this spending uses, from 0. */
+export function budgetShare(spend: Spend, limit: BudgetLimit): number {
+  return Math.max(
+    limit.dailyTokens ? spend.tokens / limit.dailyTokens : 0,
+    limit.dailyUsd ? spend.costUsd / limit.dailyUsd : 0,
+  );
+}
+
+/** One doctor line for an agent's budget: ok, or a warning near or at the limit (item 5.6). */
+export function budgetFinding(
+  agentName: string,
+  spend: Spend,
+  limit: BudgetLimit,
+): { level: "ok" | "warn"; check: string; detail: string; fix?: string } {
+  const parts = [
+    limit.dailyTokens !== null ? `${spend.tokens} of ${limit.dailyTokens} tokens` : null,
+    limit.dailyUsd !== null ? `$${spend.costUsd.toFixed(2)} of $${limit.dailyUsd.toFixed(2)}` : null,
+  ].filter((part) => part !== null);
+  const share = budgetShare(spend, limit);
+  const detail = `${agentName}: ${parts.join(", ")} in 24 hours (${Math.round(share * 100)}%).`;
+  if (budgetSpent(spend, limit))
+    return {
+      level: "warn",
+      check: "spend",
+      detail: `${detail} Its queue waits for the budget.`,
+      fix: "Raise its budget in fork-config.yaml, or wait for older spending to leave the 24-hour window.",
+    };
+  if (share >= BUDGET_WARN_SHARE)
+    return {
+      level: "warn",
+      check: "spend",
+      detail: `${detail} Near its daily budget.`,
+      fix: "Check its work in the OpenBot app or with /tiket, or raise its budget.",
+    };
+  return { level: "ok", check: "spend", detail };
+}

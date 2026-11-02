@@ -123,7 +123,8 @@ bun scripts/fork-doctor.ts /path/to/OpenBot
 ```
 
 `openbot doctor` asks the running OpenBot over its control socket, so the server needs no `bun`;
-OpenBot must be running.
+OpenBot must be running. It also shows the 24-hour spending of each agent with a budget (item 5.6): a warning from
+80% of a limit, and when the budget holds the agent's queue.
 
 It reads `fork-config.yaml`, the agent folders, each role's `persona.yaml`, `global-instructions.md`,
 the T3 Code command, the Telegram gate, the budget and the backup, and prints one line per check
