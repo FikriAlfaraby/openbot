@@ -109,6 +109,9 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
       pointer). A cut Router answer used to point to the OpenBot app, which a Telegram-only team
       never opens; now the full answer comes as `full-answer.md` in the same conversation
       (`src/backend/fork/spill.ts`).
+- [x] 5.2 `/tiket` chat command on the fast path (article §3: code decides what needs no model). A
+      Telegram team asks "how far is my work?" often; the host now answers from the ticket store
+      with no Router turn and no tokens (`src/backend/fork/chat-commands.ts`).
 
 ## Default decisions (taken while the owner was away; review them)
 
@@ -152,6 +155,10 @@ forks, T3 Code and the product needs (a Telegram team that does not use the Open
 
 - Item 5.1: a cut Router answer always spills to a file in chat (no setting); when the file cannot
   be written, the post points to the app as before. Spill files stay 7 days.
+
+- Item 5.2: the command replies in Indonesian by default (`chat.commandLanguage: en` for English),
+  because the host has no model to follow the sender's language. Only the Router's conversation
+  has the command.
 
 ## Findings
 

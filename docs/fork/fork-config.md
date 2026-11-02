@@ -100,3 +100,17 @@ works, the queued ones start one Router turn together, and the Router answers on
 the first. Only messages of one conversation and one author join, in queue order, at most 10; the
 run stops at the first other author, teammate answer or usage-limit resume. Other agents keep one
 turn per chat message.
+
+## Chat command `/tiket` (item 5.2)
+
+```yaml
+chat:
+  commandLanguage: id   # id (default) or en
+```
+
+In the Router's conversation on Telegram, Slack or Discord, `/tiket`, `/tickets` or `/status`
+(in a Telegram group also `/tiket@BotName`) gets an answer from OpenBot itself: the live tickets of
+that conversation with their state, worker and open question, then the ones that ended in the last
+24 hours. No Router turn runs, so it costs no tokens and answers also while the Router works. In any
+other agent's conversation the message goes to the agent as before.
+

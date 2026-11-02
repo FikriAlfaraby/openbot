@@ -9,3 +9,4 @@
 - Move old ended tickets to a monthly archive file, and add a daily server backup with the keyring
   that refuses an unencrypted upload to a bucket.
 - Send the full text of a cut Router chat answer as `full-answer.md` in the same conversation.
+- Answer `/tiket` in the Router's chat with the conversation's tickets, without a Router turn.

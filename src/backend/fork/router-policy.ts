@@ -189,3 +189,8 @@ export function forkBudgetOf(sharedRoot: string, agentId: string): BudgetLimit |
 export function forkArchiveAfterDays(sharedRoot: string): number {
   return readerFor(sharedRoot).current().config.archiveAfterDays ?? DEFAULT_ARCHIVE_AFTER_DAYS;
 }
+
+/** The language of the host's chat command replies (item 5.2). */
+export function forkCommandLanguage(sharedRoot: string): "id" | "en" {
+  return readerFor(sharedRoot).current().config.commandLanguage ?? "id";
+}

@@ -233,12 +233,14 @@ import type { ProviderSession } from "./database/provider-sessions";
 import { reportOriginalFailure } from "./effect-boundary";
 import { liveTicketOfTask, sweepTicketBrowserSessions } from "./fork/browser-ticket";
 import { budgetNote, ForkBudget } from "./fork/budget";
+import { chatCommandOf, ticketStatusReply } from "./fork/chat-commands";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
 import {
   forkArchiveAfterDays,
   forkBudgetOf,
   forkChatMaxWords,
+  forkCommandLanguage,
   forkGateOf,
   forkRoleOf,
   forkWatchdog,
@@ -5337,6 +5339,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** Fork: the Router's chat answers stay within the reply rule of `fork-config.yaml` (item 2.7). */
+  /** Fork: the host's reply to a chat command in the Router's conversation (item 5.2), or null. */
+  chatCommandReply(link: MessagingLink, text: string): string | null {
+    if (!chatCommandOf(text) || forkRoleOf(this.#store.sharedRoot, link.agentId) !== "router") return null;
+    try {
+      const names = new Map(this.#store.list().map((agent) => [agent.id, agent.name]));
+      return ticketStatusReply(
+        ticketStoreFor(dirname(this.#store.automationRoot)),
+        link.linkId,
+        (id) => names.get(id) ?? null,
+        forkCommandLanguage(this.#store.sharedRoot),
+      );
+    } catch {
+      return null;
+    }
+  }
+
   shapeChatAnswer(agentId: string, text: string): { text: string; spill?: SpillFile } {
     if (forkRoleOf(this.#store.sharedRoot, agentId) !== "router") return { text };
     const maxWords = forkChatMaxWords(this.#store.sharedRoot);

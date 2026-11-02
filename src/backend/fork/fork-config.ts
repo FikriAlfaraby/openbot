@@ -50,6 +50,8 @@ const BudgetSettings = Schema.Struct({
 const ChatSettings = Schema.Struct({
   /** The most words of a Router reply in a chat channel (item 2.7). */
   maxWords: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 20, maximum: 1_000 }))),
+  /** The language of the host's own chat replies, such as `/tiket` (item 5.2). */
+  commandLanguage: Schema.optionalKey(Schema.Literals(["id", "en"])),
 });
 
 const PlainText = (max: number) => Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(max));
@@ -112,6 +114,8 @@ export interface ForkConfig {
   roles: ReadonlyMap<string, ForkRole>;
   /** The most words of a Router chat reply; null for the default. */
   chatMaxWords: number | null;
+  /** The language of the host's chat command replies; null for Indonesian (item 5.2). */
+  commandLanguage: "id" | "en" | null;
   /** T3 Code settings; null when the file names none. */
   t3: ForkT3Settings | null;
   /** The agents of each MCP server that the file limits, by server name. Other servers go to all. */
@@ -131,6 +135,7 @@ export interface ForkConfig {
 export const EMPTY_FORK_CONFIG: ForkConfig = {
   roles: new Map(),
   chatMaxWords: null,
+  commandLanguage: null,
   t3: null,
   mcpAgents: new Map(),
   gates: new Map(),
@@ -173,6 +178,7 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
     config: {
       roles,
       chatMaxWords: decoded.success.chat?.maxWords ?? null,
+      commandLanguage: decoded.success.chat?.commandLanguage ?? null,
       t3: decoded.success.t3 ?? null,
       mcpAgents: new Map(
         Object.entries(decoded.success.mcp ?? {}).map(([name, access]) => [name, new Set(access.agents)]),
