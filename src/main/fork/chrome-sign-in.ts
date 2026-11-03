@@ -7,7 +7,7 @@
 // folder. The values are never logged.
 import { execFile } from "node:child_process";
 import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
-import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -195,6 +195,17 @@ function chromeCookieRow(row: unknown): ChromeCookieRow | null {
   };
 }
 
+/** Chrome from version 96 keeps the database in `Network`; an older profile keeps it at its root. */
+async function chromeCookiesPath(profileFolder: string): Promise<string> {
+  const current = join(profileFolder, "Network", "Cookies");
+  try {
+    await access(current);
+    return current;
+  } catch {
+    return join(profileFolder, "Cookies");
+  }
+}
+
 /** Chrome holds its database open, so OpenBot reads a copy in a folder of its own. */
 async function readChromeRows(cookiesPath: string): Promise<{ rows: ChromeCookieRow[]; version: number }> {
   const folder = await mkdtemp(join(tmpdir(), "openbot-chrome-"));
@@ -243,7 +254,9 @@ export async function readChromeSignIn(
 ): Promise<BrowserSignInCookie[]> {
   requireMac();
   if (!PROFILE_ID.test(profileId)) throw new Error(sourceText("error.backend.chromeProfileMissing"));
-  const { rows, version } = await readChromeRows(join(chromeUserDataDirectory(home), profileId, "Cookies"));
+  const { rows, version } = await readChromeRows(
+    await chromeCookiesPath(join(chromeUserDataDirectory(home), profileId)),
+  );
   const siteRows = rows.filter((row) => browserSignInCookieFitsHost(row.host_key, host));
   if (siteRows.length === 0) return [];
   const key = chromeCookieKey(await chromeKeychainPassword());

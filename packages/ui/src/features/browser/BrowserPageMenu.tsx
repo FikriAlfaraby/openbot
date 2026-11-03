@@ -141,7 +141,14 @@ function ChromeSignInMenu(props: {
             <Match when={profiles().state === "loading"}>
               <DropdownMenu.Item disabled>{t("browser.chromeSignIn.loading")}</DropdownMenu.Item>
             </Match>
-            <Match when={failure()}>{(message) => <DropdownMenu.Item disabled>{message()}</DropdownMenu.Item>}</Match>
+            {/* A sentence of what to do, which a menu item would cut to one line. */}
+            <Match when={failure()}>
+              {(message) => (
+                <div class="ui-menu-label" role="status">
+                  {message()}
+                </div>
+              )}
+            </Match>
             <Match when={readyProfiles()}>
               {(list) => (
                 <For
