@@ -103,7 +103,7 @@ export class ForkBudget {
 }
 
 /** Spending at or above this share of a limit is a warning in `openbot doctor` (item 5.6). */
-export const BUDGET_WARN_SHARE = 0.8;
+const BUDGET_WARN_SHARE = 0.8;
 
 /** The highest share of a limit that this spending uses, from 0. */
 export function budgetShare(spend: Spend, limit: BudgetLimit): number {

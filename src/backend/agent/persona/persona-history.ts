@@ -20,7 +20,7 @@ import {
 import { PersonaFileFailed, personaIo, personaTextHash, readPersonaText } from "./persona-file";
 import { PERSONA_FILE_NAME, parsePersona } from "./persona-schema";
 
-export const PERSONA_HISTORY_FOLDER = join(".openbot-persona", "versions");
+const PERSONA_HISTORY_FOLDER = join(".openbot-persona", "versions");
 
 export interface PersonaVersion {
   version: number;
@@ -30,7 +30,7 @@ export interface PersonaVersion {
   overrideBases: Partial<Record<OverridableRuleKey, string>>;
 }
 
-export interface PersonaStatus {
+interface PersonaStatus {
   /** The current file, or null when the workspace has no `persona.yaml`. */
   current: { hash: string; version: number | null; issue: string | null } | null;
   /** The override keys whose built-in default changed after the current version was saved. */

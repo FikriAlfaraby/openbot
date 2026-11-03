@@ -52,7 +52,7 @@ const TRANSITIONS: Record<TicketState, readonly TicketState[]> = {
   cancelled: [],
 };
 
-export const TICKET_SOURCES = ["messaging", "telegram", "app", "routine", "agent", "other"] as const;
+const TICKET_SOURCES = ["messaging", "telegram", "app", "routine", "agent", "other"] as const;
 export type TicketSource = (typeof TICKET_SOURCES)[number];
 
 export const TICKET_LIMITS = {

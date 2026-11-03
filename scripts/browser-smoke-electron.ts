@@ -1316,16 +1316,17 @@ async function main(): Promise<void> {
     if (canvasValue !== "canvas:true") {
       throw new Error("V2 canvas coordinate click was not trusted.");
     }
-    // An input action returns a short status, so the refs of the snapshot before it still work.
+    // Fork: an input action returns what it changed, not the whole page, and the refs of the snapshot
+    // before it still work (the next click reuses one).
     const canvasStatus = toolTextPayload(canvasClick);
     if (
       !canvasStatus ||
       "elements" in canvasStatus ||
       "text" in canvasStatus ||
-      canvasStatus.revision !== beforeStatusAction.revision ||
+      !isDynamicRecord(canvasStatus.changes) ||
       canvasStatus.url !== v2Contents.getURL()
     ) {
-      throw new Error(`V2 input action did not return a status: ${JSON.stringify(canvasStatus)}`);
+      throw new Error(`V2 input action did not return its changes: ${JSON.stringify(canvasStatus)}`);
     }
     const statusTarget = beforeStatusAction.elements.find((element) => element.name === "Fresh target");
     if (!statusTarget) throw new Error("V2 action status fixture was not available.");

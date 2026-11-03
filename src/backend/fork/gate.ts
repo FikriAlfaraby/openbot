@@ -21,8 +21,8 @@ import { appendFileSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { redactText } from "@openbot/logging";
 
-export const GATE_MODES = ["off", "observe", "auto"] as const;
-export type GateMode = (typeof GATE_MODES)[number];
+const GATE_MODES = ["off", "observe", "auto"] as const;
+type GateMode = (typeof GATE_MODES)[number];
 export type GateDecision = "accept" | "observe" | "drop";
 
 export interface PlatformGate {

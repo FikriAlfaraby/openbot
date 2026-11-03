@@ -5,7 +5,7 @@
 
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 
-export const FORK_MCP_PARAM = "forkMcpServers";
+const FORK_MCP_PARAM = "forkMcpServers";
 
 /** The allowed server names of a thread's params, or null when the fork changes nothing. */
 export function forkMcpNames(params: unknown): string[] | null {

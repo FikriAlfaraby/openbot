@@ -10,8 +10,8 @@ import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs
 import { join } from "node:path";
 
 export const SPILL_DIR = "fork-spill";
-export const SPILL_FILE_NAME = "full-answer.md";
-export const SPILL_KEEP_DAYS = 7;
+const SPILL_FILE_NAME = "full-answer.md";
+const SPILL_KEEP_DAYS = 7;
 
 export interface SpillFile {
   name: string;
@@ -33,7 +33,7 @@ export function writeSpill(userDataPath: string, agentId: string, text: string, 
 }
 
 /** Deletes spill files older than `keepDays`. Returns how many went. */
-export function pruneSpills(userDataPath: string, keepDays: number = SPILL_KEEP_DAYS, now: Date = new Date()): number {
+export function pruneSpills(userDataPath: string, keepDays: number = SPILL_KEEP_DAYS, now: Date = new Date()) {
   const root = join(userDataPath, SPILL_DIR);
   let removed = 0;
   let agents: string[];

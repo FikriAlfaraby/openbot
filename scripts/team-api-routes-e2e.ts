@@ -1127,9 +1127,10 @@ try {
   const fourth = await call("POST", TEAM_API_ROUTES.join.server, {
     json: { inviteToken: seatInvite.token, username: "carol", password: "carol-password-e2e" },
   });
+  // Fork: a server with no license takes up to DEFAULT_TEAM_MEMBER_LIMIT (100) members, so a fourth joins.
   check(
-    "a fourth member is refused with memberLimit",
-    errorIs(fourth, 400, sourceText("error.team.memberLimit", { limit: 3 })) && store.listMembers().length === 3,
+    "a fourth member joins under the fork's member limit",
+    fourth.status === 201 && store.listMembers().length === 4,
     summary(fourth),
   );
 
@@ -1308,7 +1309,7 @@ try {
     );
 
     const members = await call("GET", TEAM_API_ROUTES.team.members, { token: adaToken });
-    check("an admin lists the three members", members.status === 200 && list(members.body).length === 3, {
+    check("an admin lists the four members", members.status === 200 && list(members.body).length === 4, {
       status: members.status,
       count: list(members.body).length,
     });

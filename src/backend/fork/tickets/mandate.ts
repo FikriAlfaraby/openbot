@@ -8,13 +8,13 @@ import { createHash } from "node:crypto";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import type { PlatformGate } from "../gate";
 
-export const MANDATE_STRENGTHS = ["explicit", "open", "agent"] as const;
+const MANDATE_STRENGTHS = ["explicit", "open", "agent"] as const;
 /**
  * - `explicit`: a person on the gate's allow-list asked for the work.
  * - `open`: a person asked, and the platform has no allow-list (upstream's behavior).
  * - `agent`: no person's message started it (the app, a routine, a teammate).
  */
-export type MandateStrength = (typeof MANDATE_STRENGTHS)[number];
+type MandateStrength = (typeof MANDATE_STRENGTHS)[number];
 
 export interface Mandate {
   version: 1;

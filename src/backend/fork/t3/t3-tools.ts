@@ -22,7 +22,7 @@ import {
   ticketStateFor,
 } from "./t3-cli";
 
-export const T3_TOOL_NAMES = ["t3_run", "t3_show", "t3_sweep"] as const;
+const T3_TOOL_NAMES = ["t3_run", "t3_show", "t3_sweep"] as const;
 export type T3ToolName = (typeof T3_TOOL_NAMES)[number];
 
 export function isT3Tool(name: string): name is T3ToolName {

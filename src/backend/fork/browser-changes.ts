@@ -26,7 +26,7 @@ function nodeKey(ref: string): string {
 }
 
 /** One element as the snapshot lists it: ref, role, "name", then <tag>, value= and states when present. */
-export function browserElementLine(element: BrowserElement): string {
+function browserElementLine(element: BrowserElement): string {
   const parts = [element.ref, element.role ?? "generic", JSON.stringify(element.name), `<${element.tag}>`];
   if (element.value !== null && element.value !== "") parts.push(`value=${JSON.stringify(element.value)}`);
   if (element.description) parts.push(`description=${JSON.stringify(element.description)}`);

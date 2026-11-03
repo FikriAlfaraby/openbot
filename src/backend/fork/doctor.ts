@@ -16,7 +16,7 @@ import { PERSONA_FILE_NAME, parsePersona } from "../agent/persona/persona-schema
 import { FORK_CONFIG_FILE_NAME, type ForkRole, parseForkConfig } from "./fork-config";
 import { ROLE_PERSONA_TEMPLATES } from "./role-templates";
 
-export type DoctorLevel = "ok" | "warn" | "error";
+type DoctorLevel = "ok" | "warn" | "error";
 
 export interface DoctorFinding {
   level: DoctorLevel;

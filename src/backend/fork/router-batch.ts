@@ -9,7 +9,7 @@
 // other agents keep upstream's one message per turn in chat platforms.
 
 /** The most messages in one batched turn. */
-export const ROUTER_BATCH_LIMIT = 10;
+const ROUTER_BATCH_LIMIT = 10;
 
 export interface BatchCandidate {
   id: string;

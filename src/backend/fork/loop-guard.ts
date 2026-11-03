@@ -9,7 +9,7 @@
 
 import { createHash } from "node:crypto";
 
-export const LOOP_GUARD_DEFAULTS = { failures: 3, windowMs: 10 * 60_000 } as const;
+const LOOP_GUARD_DEFAULTS = { failures: 3, windowMs: 10 * 60_000 } as const;
 
 /** The most remembered failing calls per agent. */
 const MAX_ENTRIES = 32;
@@ -33,7 +33,7 @@ export function callSignature(tool: string, args: unknown): string {
     .slice(0, 16)}`;
 }
 
-export function loopGuardRefusal(tool: string, failures: number): string {
+function loopGuardRefusal(tool: string, failures: number): string {
   return `OpenBot stopped this ${tool} call: it failed ${failures} times in a row with the same input. Do not retry it as it is. Change the input or the approach; when the work cannot go on, report the ticket blocked with openbot.ticket_report, or tell the one who asked, and say what failed.`;
 }
 

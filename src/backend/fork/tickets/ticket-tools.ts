@@ -19,12 +19,11 @@ import {
   type Ticket,
   TicketError,
   type TicketSource,
-  type TicketState,
   type TicketStore,
 } from "./ticket-store";
 import { MAX_WATCHDOG_RETRIES, watchdogRetries } from "./watchdog";
 
-export const TICKET_TOOL_NAMES = [
+const TICKET_TOOL_NAMES = [
   "ticket_create",
   "ticket_assign",
   "ticket_list",
@@ -390,5 +389,3 @@ const assign = Effect.fn("TicketTools.assign")(function* (
     },
   };
 });
-
-export type { TicketState };

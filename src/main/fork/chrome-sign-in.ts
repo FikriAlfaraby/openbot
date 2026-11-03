@@ -25,7 +25,7 @@ export interface ChromeProfile {
   name: string;
 }
 
-export interface ChromeCookieRow {
+interface ChromeCookieRow {
   host_key: string;
   name: string;
   value: string;
@@ -55,12 +55,12 @@ const SAME_SITE: Record<string, BrowserSignInCookie["sameSite"]> = {
   "2": "strict",
 };
 
-export function chromeUserDataDirectory(home = homedir()): string {
+function chromeUserDataDirectory(home = homedir()): string {
   return join(home, "Library", "Application Support", "Google", "Chrome");
 }
 
 /** The profiles in Chrome's `Local State`, in the order Chrome shows them. */
-export function chromeProfilesFromLocalState(localState: unknown): ChromeProfile[] {
+function chromeProfilesFromLocalState(localState: unknown): ChromeProfile[] {
   const profile = isDynamicRecord(localState) ? localState.profile : undefined;
   const cache = isDynamicRecord(profile) ? profile.info_cache : undefined;
   if (!isDynamicRecord(profile) || !isDynamicRecord(cache)) return [];
@@ -77,7 +77,7 @@ export function chromeProfilesFromLocalState(localState: unknown): ChromeProfile
 }
 
 /** The AES key that Chrome on macOS derives from the keychain password. */
-export function chromeCookieKey(password: string): Buffer {
+function chromeCookieKey(password: string): Buffer {
   return pbkdf2Sync(password, "saltysalt", 1003, 16, "sha1");
 }
 
@@ -85,7 +85,7 @@ export function chromeCookieKey(password: string): Buffer {
  * The value of one cookie, or null when it is not one this Mac's Chrome encrypted with `v10`. A
  * database from version 24 puts the SHA-256 of the cookie's host before the value; it must match.
  */
-export function decryptChromeCookie(
+function decryptChromeCookie(
   encrypted: Uint8Array,
   key: Buffer,
   hostKey: string,
@@ -109,7 +109,7 @@ export function decryptChromeCookie(
 }
 
 /** A Chrome row as a `browser-sign-in` cookie, or null for an ended cookie or one the wire refuses. */
-export function chromeRowToCookie(row: ChromeCookieRow, value: string, nowSeconds: number): BrowserSignInCookie | null {
+function chromeRowToCookie(row: ChromeCookieRow, value: string, nowSeconds: number): BrowserSignInCookie | null {
   const domain = row.host_key.toLowerCase();
   if (!domain || Buffer.byteLength(row.name) + Buffer.byteLength(value) > CHROME_COOKIE_BYTES) return null;
   let expirationDate: number | null = null;

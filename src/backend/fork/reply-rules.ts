@@ -7,7 +7,6 @@
 // OpenBot app, where the Router's conversation keeps it. Code blocks count as words like any text.
 
 export const DEFAULT_CHAT_MAX_WORDS = 100;
-export const CHAT_MAX_WORDS_RANGE = { min: 20, max: 1_000 } as const;
 
 const MORE_NOTE = "… (The full answer is in the OpenBot app.)";
 export const SPILL_NOTE = "… (The full answer is in the attached file full-answer.md.)";

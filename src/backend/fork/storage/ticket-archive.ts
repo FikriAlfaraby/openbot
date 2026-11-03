@@ -13,8 +13,8 @@ import type { TicketStore } from "../tickets/ticket-store";
 
 export const FORK_ARCHIVE_DIR = "fork-archive";
 export const DEFAULT_ARCHIVE_AFTER_DAYS = 30;
-export const OBSERVATIONS_FILE_NAME = "fork-observations.jsonl";
-export const OBSERVATIONS_ROTATE_BYTES = 5_000_000;
+const OBSERVATIONS_FILE_NAME = "fork-observations.jsonl";
+const OBSERVATIONS_ROTATE_BYTES = 5_000_000;
 const DAY_MS = 24 * 60 * 60_000;
 
 function archiveDir(openbotRoot: string): string {

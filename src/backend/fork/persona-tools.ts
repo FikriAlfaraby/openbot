@@ -15,7 +15,7 @@ import { listPersonaVersions, snapshotPersona, staleOverrides } from "../agent/p
 import { PERSONA_FILE_NAME, PERSONA_LIMITS, parsePersona } from "../agent/persona/persona-schema";
 import { writeFileAtomically } from "../atomic-json-file";
 
-export const PERSONA_TOOL_NAMES = ["persona_read", "persona_update"] as const;
+const PERSONA_TOOL_NAMES = ["persona_read", "persona_update"] as const;
 export type PersonaToolName = (typeof PERSONA_TOOL_NAMES)[number];
 
 export function isPersonaTool(name: string): name is PersonaToolName {

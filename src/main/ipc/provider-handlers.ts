@@ -219,7 +219,7 @@ export function parseConnectProviderAccountInput(value: unknown): ConnectProvide
   };
 }
 
-export function parseAdoptProviderAccountInput(value: unknown): AdoptProviderAccountInput {
+function parseAdoptProviderAccountInput(value: unknown): AdoptProviderAccountInput {
   if (!isDynamicRecord(value)) throw new Error("Invalid provider profile.");
   return { provider: parseProviderId(value.provider), path: requireString(value.path, "path", 4096) };
 }

@@ -21,7 +21,7 @@ export const FORK_CONFIG_FILE_NAME = "fork-config.yaml";
 /** Bytes. The file names a few dozen agents at most. */
 export const FORK_CONFIG_MAX_BYTES = 64_000;
 
-export const FORK_ROLES = ["router", "worker", "watchdog"] as const;
+const FORK_ROLES = ["router", "worker", "watchdog"] as const;
 export type ForkRole = (typeof FORK_ROLES)[number];
 
 /** An OpenBot agent id: the name of its folder in `Agents`. */
@@ -107,8 +107,6 @@ const ForkConfigDocument = Schema.Struct({
 
 export type ForkT3Settings = typeof T3Settings.Type;
 
-export type ForkConfigDocument = typeof ForkConfigDocument.Type;
-
 /** The configuration that the host uses. */
 export interface ForkConfig {
   roles: ReadonlyMap<string, ForkRole>;
@@ -132,7 +130,7 @@ export interface ForkConfig {
   archiveAfterDays: number | null;
 }
 
-export const EMPTY_FORK_CONFIG: ForkConfig = {
+const EMPTY_FORK_CONFIG: ForkConfig = {
   roles: new Map(),
   chatMaxWords: null,
   commandLanguage: null,

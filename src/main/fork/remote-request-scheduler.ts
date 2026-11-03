@@ -25,7 +25,7 @@ const BACKGROUND_CONCURRENCY = 4;
 /** The longest a background read waits for the screen reads, so a slow page cannot hold it forever. */
 const BACKGROUND_WAIT_MS = 4_000;
 
-export function remoteRequestPriority(method: string, path: string): RemoteRequestPriority {
+function remoteRequestPriority(method: string, path: string): RemoteRequestPriority {
   const route = path.split("?", 1)[0] ?? path;
   if (method === "GET") return SCREEN_READS.some((pattern) => pattern.test(route)) ? "screen" : "background";
   return POSTED_READS.some((pattern) => pattern.test(route)) ? "background" : "write";

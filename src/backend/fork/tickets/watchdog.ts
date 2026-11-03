@@ -19,7 +19,7 @@ const FAILED_RECHECK_MS = 24 * 60 * 60_000;
 
 const LIVE: readonly TicketState[] = ["working", "awaiting_human", "review", "blocked"];
 
-export type WatchdogFlag = "no_progress" | "blocked" | "waits_long" | "review_waits" | "failed_recent";
+type WatchdogFlag = "no_progress" | "blocked" | "waits_long" | "review_waits" | "failed_recent";
 
 export interface WatchdogFinding {
   ticket: number;
@@ -89,7 +89,7 @@ export function watchdogFindings(
   return { live: live.length, findings };
 }
 
-function flagOf(ticket: Ticket, minutes: number, staleMinutes: number): WatchdogFlag | null {
+function flagOf(ticket: Ticket, minutes: number, staleMinutes: number): Exclude<WatchdogFlag, "failed_recent"> | null {
   if (ticket.state === "blocked") return "blocked";
   if (minutes < staleMinutes) return null;
   if (ticket.state === "working") return "no_progress";
