@@ -1,5 +1,5 @@
 import type { LocalBrowserSecretResponse, QueueDelivery, QueueHold } from "@openbot/contracts/ipc";
-import { ArrowUp, Button } from "@openbot/ui";
+import { ArrowUp, Button, Image } from "@openbot/ui";
 import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import type { BrowserSecretVault } from "@openbot/ui/features/conversation/BrowserSecretCard";
@@ -9,6 +9,7 @@ import { QueuePanel } from "@openbot/ui/features/conversation/QueuePanel";
 import type { SendShortcut } from "@openbot/ui/features/conversation/send-shortcut";
 import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
+import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, flush, onSettled, Show, untrack } from "solid-js";
 import { type BrowserIslandContent, BrowserIslandFace, browserIslandKey } from "./BrowserIsland";
 import {
@@ -74,6 +75,20 @@ export interface BrowserDockProps {
   onOpenChat?: (() => void) | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
+  /** Fork: the files of the draft. Absent where the dock cannot attach. */
+  attachments?: BrowserDockAttachments | undefined;
+}
+
+/**
+ * Fork: the files of the draft, as each window shows them. A pasted image joins the draft through the
+ * preload, so the dock only shows the row and opens the file picker.
+ */
+export interface BrowserDockAttachments {
+  /** The row of the draft's files above the field, and the hidden file picker. */
+  row: JSX.Element;
+  /** With a file, a message can go with no text. */
+  count: number;
+  onAttach: () => void;
 }
 
 /** A message on its way from the field, or from a queue row, until the host shows where it went. */
@@ -195,7 +210,7 @@ export function BrowserDock(props: BrowserDockProps) {
 
   const send = () => {
     const text = props.value.trim();
-    if (!text) return;
+    if (!text && !props.attachments?.count) return;
     if (editing()) {
       press(form);
       props.onSend(text);
@@ -203,7 +218,7 @@ export function BrowserDock(props: BrowserDockProps) {
     }
     const field = fieldText();
     const stack = form?.closest<HTMLElement>(".browser-dock-stack");
-    if (field && form) {
+    if (text && field && form) {
       pending = {
         text,
         source: morphSource(form, field, true, textRect(field)),
@@ -326,6 +341,7 @@ export function BrowserDock(props: BrowserDockProps) {
             </Show>
           </div>
         </div>
+        {props.attachments?.row}
         <form
           class="browser-dock-glass browser-dock-composer"
           ref={(element) => {
@@ -360,9 +376,22 @@ export function BrowserDock(props: BrowserDockProps) {
               onValueChange={props.onValueChange}
             />
           </div>
+          <Show when={props.attachments}>
+            {(attachments) => (
+              <Button
+                type="button"
+                variant="ghost"
+                class="voice-button"
+                aria-label={t("composer.add.image")}
+                onClick={() => attachments().onAttach()}
+              >
+                <Image aria-hidden="true" />
+              </Button>
+            )}
+          </Show>
           {/* As in the conversation: while the agent works and the field is empty, Send is Stop. */}
           <Show
-            when={props.working && !editing() && !props.value.trim()}
+            when={props.working && !editing() && !props.value.trim() && !props.attachments?.count}
             fallback={
               <Button
                 type="submit"

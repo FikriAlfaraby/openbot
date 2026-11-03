@@ -115,6 +115,40 @@ describe("browser dock decoding", () => {
     expect(() => decodeBrowserDockAction({ type: "open-link", url: "" })).toThrow("Invalid browser dock action.");
   });
 
+  // Fork: the overlay hands the main renderer the images it imported, and asks it to remove one.
+  it("accepts the files of a draft from the overlay within their limits", () => {
+    const image = {
+      id: "attachment-1",
+      name: "screenshot.png",
+      size: 1024,
+      kind: "image",
+      mimeType: "image/png",
+      previewKind: "image",
+      previewUrl: null,
+    };
+    expect(decodeBrowserDockAction({ type: "attach", attachments: [image] })).toEqual({
+      type: "attach",
+      attachments: [image],
+    });
+    expect(decodeBrowserDockAction({ type: "remove-attachment", attachmentId: "attachment-1" })).toEqual({
+      type: "remove-attachment",
+      attachmentId: "attachment-1",
+    });
+    expect(
+      decodeBrowserDockPresentation({ ...PRESENTATION, draft: { text: "", revision: 3, attachments: [image] } }),
+    ).toMatchObject({ draft: { attachments: [image] } });
+    expect(() =>
+      decodeBrowserDockAction({
+        type: "attach",
+        attachments: Array.from({ length: INPUT_LIMITS.draftAttachments + 1 }, () => image),
+      }),
+    ).toThrow("Invalid browser dock action.");
+    expect(() => decodeBrowserDockAction({ type: "attach", attachments: [{ ...image, kind: "script" }] })).toThrow(
+      "Invalid browser dock action.",
+    );
+    expect(() => decodeBrowserDockAction({ type: "remove-attachment" })).toThrow("Invalid browser dock action.");
+  });
+
   it("accepts the answers of a card within their limits", () => {
     const answered = { type: "answer-prompt", requestId: "req-1", answers: { slot: ["18:00"], extra: [] } };
     expect(decodeBrowserDockAction(answered)).toEqual(answered);

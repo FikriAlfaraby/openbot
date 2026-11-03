@@ -1,3 +1,4 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   BROWSER_DOCK_LIMITS,
   type BrowserDockAction,
@@ -5,7 +6,9 @@ import {
   type BrowserDockPresentation,
   LOCAL_SERVER_ID,
 } from "@openbot/contracts/ipc";
+import { Input } from "@openbot/ui";
 import { BrowserDock } from "@openbot/ui/features/browser/BrowserDock";
+import { ComposerAttachmentRow } from "@openbot/ui/features/conversation/ComposerAttachmentRow";
 import { clamp } from "@openbot/ui/utils";
 import { createSignal, onSettled, Show } from "solid-js";
 import { browserDockPort } from "./browser-dock-port";
@@ -13,6 +16,8 @@ import { browserDockPort } from "./browser-dock-port";
 /** The space above the dock for its shadow, in CSS pixels. */
 const SHADOW_ROOM = 24;
 const BLUR_PATTERN = /blur\(([\d.]+)px\)/;
+/** The files of one draft, as the dock contract bounds them. */
+const BROWSER_DOCK_ATTACHMENTS = INPUT_LIMITS.draftAttachments;
 
 /**
  * The browser dock in the overlay view above a local page. The main renderer owns the conversation: this
@@ -29,6 +34,7 @@ export function BrowserDockSurface() {
   let seq = 0;
   let lastFrame = "";
   let frameRequest = 0;
+  let picker: HTMLInputElement | undefined;
 
   function apply(next: BrowserDockPresentation | null) {
     received = true;
@@ -106,6 +112,15 @@ export function BrowserDockSurface() {
     if (frameRequest === 0) frameRequest = requestAnimationFrame(report);
   }
 
+  // Fork: a picked or pasted image is imported by this view's preload. The draft is the main renderer's,
+  // so the files go there; it publishes them back in the draft.
+  onSettled(() =>
+    browserDockPort().agent.onAttachmentImport((event) => {
+      if (event.type === "completed" && event.attachments.length > 0)
+        perform({ type: "attach", attachments: event.attachments.slice(0, BROWSER_DOCK_ATTACHMENTS) });
+    }),
+  );
+
   onSettled(() => {
     const stop = browserDockPort().browserDock.onPresentation(apply);
     void browserDockPort()
@@ -171,6 +186,33 @@ export function BrowserDockSurface() {
             onOpenChat={() => perform({ type: "open-chat" })}
             onSelectAgent={(agentId) => perform({ type: "select-agent", agentId })}
             onOpenLink={(url) => perform({ type: "open-link", url })}
+            attachments={{
+              row: (
+                <>
+                  <ComposerAttachmentRow
+                    attachments={dock().draft.attachments ?? []}
+                    onRemove={(attachment) => perform({ type: "remove-attachment", attachmentId: attachment.id })}
+                  />
+                  <Input
+                    ref={(element) => {
+                      picker = element;
+                    }}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    tabindex={-1}
+                    data-openbot-attachment-picker="true"
+                  />
+                </>
+              ),
+              count: dock().draft.attachments?.length ?? 0,
+              onAttach: () => {
+                if (!picker) return;
+                picker.value = "";
+                picker.click();
+              },
+            }}
           />
         )}
       </Show>

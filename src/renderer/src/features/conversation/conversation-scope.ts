@@ -2098,6 +2098,7 @@ export function createConversationViewScope(props: ConversationProps) {
     reloadBrowserTab,
     stopBrowserTab,
     removeAttachment,
+    addAttachments,
     renderedAgentActivity,
     providerSilentMinutes,
     providerOffline,

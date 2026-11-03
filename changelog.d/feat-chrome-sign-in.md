@@ -8,3 +8,5 @@
   when it starts, and again when you select Sync from Chrome now.
 - Open chat links in the built-in browser of a joined server too, when Settings › General › Open external
   links in is OpenBot. Before, that setting worked only for this computer's agents.
+- Paste or attach an image in the message box over the browser page. It shows above the box, and a message
+  can go with only the image. Before, an image pasted there went to the chat draft without showing.

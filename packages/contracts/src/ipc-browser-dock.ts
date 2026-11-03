@@ -10,6 +10,7 @@ import {
   isAgentApproval,
   isBrowserTakeoverRequest,
 } from "./ipc-approvals";
+import { type DraftAttachment, isAttachmentSummary } from "./ipc-attachments";
 import {
   integerInRange,
   isBoundedString,
@@ -88,7 +89,12 @@ export interface BrowserDockPresentation {
    * The draft of the conversation. The revision changes only when the draft changes outside the overlay,
    * so the overlay keeps its own text while the user types in it.
    */
-  draft: { text: string; revision: number };
+  draft: {
+    text: string;
+    revision: number;
+    /** Fork: the files of the draft that its text does not name, shown above the field. */
+    attachments?: DraftAttachment[] | undefined;
+  };
   focusRequest: number;
   sendShortcut: BrowserDockSendShortcut;
   working: boolean;
@@ -120,7 +126,10 @@ export type BrowserDockAction =
   | { type: "respond-approval"; requestId: string | number; decision: "accept" | "decline" }
   | { type: "open-chat" }
   | { type: "select-agent"; agentId: string }
-  | { type: "open-link"; url: string };
+  | { type: "open-link"; url: string }
+  /** Fork: files that the overlay imported from a paste or its file picker, for the draft. */
+  | { type: "attach"; attachments: DraftAttachment[] }
+  | { type: "remove-attachment"; attachmentId: string };
 
 /**
  * One glass shape of the dock, in CSS pixels of the overlay. `bottom` is the space from the bottom of the
@@ -192,6 +201,10 @@ export function isBrowserDockAction(value: unknown): value is BrowserDockAction 
       return isIdentifier(value.agentId);
     case "open-link":
       return isBoundedString(value.url, INPUT_LIMITS.browserUrl) && value.url.length > 0;
+    case "attach":
+      return isList(value.attachments, INPUT_LIMITS.draftAttachments, isAttachmentSummary);
+    case "remove-attachment":
+      return isIdentifier(value.attachmentId);
     case "stop":
     case "cancel-edit":
     case "handoff":
@@ -242,7 +255,12 @@ function isList<T>(value: unknown, maximum: number, isItem: (item: unknown) => i
 }
 
 function isDraft(value: unknown): value is BrowserDockPresentation["draft"] {
-  return isDynamicRecord(value) && isBoundedString(value.text, INPUT_LIMITS.messageText) && isCount(value.revision);
+  return (
+    isDynamicRecord(value) &&
+    isBoundedString(value.text, INPUT_LIMITS.messageText) &&
+    isCount(value.revision) &&
+    (value.attachments === undefined || isList(value.attachments, INPUT_LIMITS.draftAttachments, isAttachmentSummary))
+  );
 }
 
 /**

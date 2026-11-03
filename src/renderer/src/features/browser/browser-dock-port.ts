@@ -5,7 +5,7 @@ import type { OpenBotDesktopApi } from "@openbot/contracts/ipc";
  * that the agent asks for. The overlay has no provider tree, so this is a module.
  */
 export interface BrowserDockPort {
-  agent: Pick<OpenBotDesktopApi["agent"], "respondToBrowserSecret">;
+  agent: Pick<OpenBotDesktopApi["agent"], "respondToBrowserSecret" | "onAttachmentImport">;
   browserDock: Pick<
     OpenBotDesktopApi["browserDock"],
     "getPresentation" | "onPresentation" | "performAction" | "setFrame"

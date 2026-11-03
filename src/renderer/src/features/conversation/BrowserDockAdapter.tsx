@@ -11,9 +11,11 @@ import {
   isBrowserDockIsland,
 } from "@openbot/contracts/ipc";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
+import { Input } from "@openbot/ui";
 import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/ui/data";
 import { BrowserDock, type BrowserIslandContent } from "@openbot/ui/features/browser/BrowserDock";
 import { browserActionLabel } from "@openbot/ui/features/browser/browser-action-labels";
+import { ComposerAttachmentRow } from "@openbot/ui/features/conversation/ComposerAttachmentRow";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, Show, snapshot, untrack } from "solid-js";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
@@ -54,6 +56,10 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     releaseBrowserControl,
     openExternalMessageUrl,
     setActiveRightPanel,
+    addAttachments,
+    removeAttachment,
+    rowDraftAttachments,
+    currentPastePreviews,
   } = useConversationViewScope();
   const { t } = useText();
   const control = () => (adapterProps.tab ? browserControlForTab(adapterProps.tab) : undefined);
@@ -279,7 +285,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       agents: props.agents.map(dockAgent),
       skills: installedSkills().slice(0, BROWSER_DOCK_LIMITS.skills).map(dockSkill),
       mcpServers: mcpServers().map(dockMcpServer),
-      draft: { text, revision: draftRevision },
+      draft: { text, revision: draftRevision, attachments: rowDraftAttachments() },
       focusRequest: composerFocusRequest(),
       sendShortcut: deviceSendShortcut(props.platform),
       working: working(),
@@ -362,6 +368,12 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       case "open-link":
         void openExternalMessageUrl(action.url);
         return;
+      case "attach":
+        void addAttachments(action.attachments);
+        return;
+      case "remove-attachment":
+        removeAttachment(action.attachmentId);
+        return;
     }
   }
 
@@ -380,6 +392,41 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       };
     },
   );
+
+  // Fork: the draft's files above the field. A picked or pasted image joins the draft through the preload,
+  // as in the chat, so the button only opens a picker of its own.
+  let picker: HTMLInputElement | undefined;
+  const dockAttachments = () => ({
+    row: (
+      <>
+        <ComposerAttachmentRow
+          attachments={rowDraftAttachments()}
+          pending={currentPastePreviews()}
+          onRemove={(attachment) => removeAttachment(attachment.id)}
+        />
+        <Input
+          ref={(element) => {
+            picker = element;
+          }}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          tabindex={-1}
+          data-openbot-attachment-picker={props.runtime ? undefined : "true"}
+          onChange={(event) => {
+            if (props.runtime?.importFiles) void props.runtime.importFiles(Array.from(event.currentTarget.files ?? []));
+          }}
+        />
+      </>
+    ),
+    count: currentDraft().attachments.length,
+    onAttach: () => {
+      if (!picker) return;
+      picker.value = "";
+      picker.click();
+    },
+  });
 
   return (
     <Show when={!overlayShown() && props.agent}>
@@ -421,6 +468,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
             onOpenChat={() => setActiveRightPanel("browser")}
             onSelectAgent={props.onSelectAgent}
             onOpenLink={(url) => void openExternalMessageUrl(url)}
+            attachments={dockAttachments()}
           />
         );
       }}
