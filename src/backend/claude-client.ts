@@ -88,6 +88,7 @@ import {
   isClaudeTaskNotification,
 } from "./conversation-snapshots";
 import { runCauseEffect } from "./effect-boundary";
+import { recoverClaudeSession } from "./fork/claude-session-recovery";
 import { forkMcpNames, withForkMcp } from "./fork/fork-mcp";
 import { ROUTER_CLAUDE_DISALLOWED_TOOLS } from "./fork/router-policy";
 import { IdleThreadPool } from "./idle-thread-pool";
@@ -910,6 +911,15 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           )
         : null;
     const plugins = [skillPlugin, homeSkillPlugin].filter((plugin) => plugin !== null);
+    // Fork: a chat that another account folder wrote is copied into this account's folder first.
+    if (resume)
+      yield* Effect.promise(() =>
+        recoverClaudeSession(
+          threadId,
+          config.cwd,
+          this.#agentEnvironment?.().CLAUDE_CONFIG_DIR ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"),
+        ),
+      );
     const launchPath = yield* cliLaunchPath(this.#cli.executable, this.#cli.source);
     // `stop()` may have run during the await: a query created now would outlive the client.
     if (!this.#running) return yield* providerFailure(new Error("Claude Agent SDK is not running."));

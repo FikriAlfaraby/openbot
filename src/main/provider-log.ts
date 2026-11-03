@@ -58,7 +58,10 @@ export function startAgentLog(logsDirectory: string): () => void {
  */
 export function startMainLog(logsDirectory: string): void {
   const directory = join(logsDirectory, "main");
-  teeLogLines(["main", "update", "channel-routing", "drain-scheduler", "chrome-sign-in"], (line) => {
-    Effect.runFork(appendRemoteDiagnosticLog(directory, "main", `${line}\n`));
-  });
+  teeLogLines(
+    ["main", "update", "channel-routing", "drain-scheduler", "chrome-sign-in", "claude-session-recovery"],
+    (line) => {
+      Effect.runFork(appendRemoteDiagnosticLog(directory, "main", `${line}\n`));
+    },
+  );
 }
