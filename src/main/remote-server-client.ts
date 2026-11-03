@@ -38,6 +38,7 @@ import {
 } from "@openbot/contracts/team-protocol/v1";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result } from "effect";
+import { RemoteRequestScheduler } from "./fork/remote-request-scheduler";
 import { decodeRemoteDesktopCapabilities } from "./remote-device-decoding";
 import type { ResponseDecoder } from "./remote-host-decoding";
 import {
@@ -140,6 +141,8 @@ export class RemoteServerClient {
   // rather than one per call. Private to the client: the UI never sees this, unlike the status the
   // negotiation produces.
   readonly #compatibilityRequests = new Map<string, Deferred.Deferred<ServerCompatibility, RemoteWorkflowError>>();
+  // Fork: the screen reads of a WebRTC server go before its background reads, and identical reads share one answer.
+  readonly #scheduler = new RemoteRequestScheduler<RemoteWorkflowError>();
 
   constructor(options: RemoteServerClientOptions) {
     this.#appVersion = options.appVersion;
@@ -161,11 +164,17 @@ export class RemoteServerClient {
     return yield* Effect.gen({ self: this }, function* () {
       if (server.transport === "webrtc-v2") {
         const compatibility = yield* this.ensureCompatibility(server);
-        const value = yield* this.#hostRequestEffect(server.id, path, {
-          ...init,
-          preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
-          agentCreateModel: this.supportsAgentCreateModel(path, init, compatibility.capabilities),
-        });
+        const value = yield* this.#scheduler.run(
+          server.id,
+          init.method ?? (init.body === undefined ? "GET" : "POST"),
+          path,
+          init.body,
+          this.#hostRequestEffect(server.id, path, {
+            ...init,
+            preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
+            agentCreateModel: this.supportsAgentCreateModel(path, init, compatibility.capabilities),
+          }),
+        );
         // Decoding is outside the transport's catch on purpose. A frame that arrived intact and then
         // failed its route decoder is a protocol failure, not a request that happened to fail, and
         // only `RemoteProtocolError` makes the classifier stop reconnecting to a host talking
