@@ -1,0 +1,73 @@
+# Fork: Signal and TURN of the community account service, on a host that already runs Dokploy.
+# Dokploy's Traefik terminates TLS for SIGNAL_DOMAIN and forwards to remote-api over dokploy-network,
+# so there is no acme service and no Cloudflare DNS token. coturn runs without TLS (no port 5349).
+#
+#   docker compose -f remote/compose.community.yaml --env-file remote/.env.community up -d --build
+name: community-ob-remote
+
+services:
+  remote-api:
+    build:
+      context: ..
+      dockerfile: remote/api/Dockerfile
+      args:
+        OPENBOT_SOURCE_COMMIT: ${OPENBOT_SOURCE_COMMIT:-unknown}
+    container_name: community-ob-signal
+    restart: unless-stopped
+    environment:
+      REMOTE_SIGNAL_HOST: 0.0.0.0
+      REMOTE_SIGNAL_PORT: 8081
+      REMOTE_HEALTH_HOST: 0.0.0.0
+      REMOTE_HEALTH_PORT: 8080
+      REMOTE_TLS_DISABLED: "true"
+      REMOTE_TRUST_PROXY: "true"
+      REMOTE_TICKET_JWKS_URL: ${REMOTE_TICKET_JWKS_URL:?REMOTE_TICKET_JWKS_URL is required}
+      REMOTE_CONTROL_PLANE_URL: ${REMOTE_CONTROL_PLANE_URL:?REMOTE_CONTROL_PLANE_URL is required}
+      REMOTE_SESSION_SECRET: ${REMOTE_SESSION_SECRET:?REMOTE_SESSION_SECRET is required}
+      REMOTE_AUTH_WEBHOOK_SECRET: ${REMOTE_AUTH_WEBHOOK_SECRET:?REMOTE_AUTH_WEBHOOK_SECRET is required}
+      REMOTE_METRICS_TOKEN: ${REMOTE_METRICS_TOKEN:?REMOTE_METRICS_TOKEN is required}
+      REMOTE_MAX_CONNECTIONS_PER_USER: ${REMOTE_MAX_CONNECTIONS_PER_USER:-32}
+      REMOTE_MAX_CONNECTIONS_PER_IP: ${REMOTE_MAX_CONNECTIONS_PER_IP:-32}
+      REMOTE_MAX_MESSAGES_PER_MINUTE: ${REMOTE_MAX_MESSAGES_PER_MINUTE:-600}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:?TURN_SHARED_SECRET is required}
+      TURN_HOST: ${TURN_DOMAIN:?TURN_DOMAIN is required}
+      TURN_EXTRA_HOSTS: ""
+      TURN_PORT: 3478
+      TURN_TLS_PORT: 5349
+    ports:
+      # Health and metrics on the host loopback address only.
+      - "127.0.0.1:9652:8080/tcp"
+    networks:
+      - default
+      - dokploy-network
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+  coturn:
+    build:
+      context: ..
+      dockerfile: remote/coturn/Dockerfile
+    container_name: community-ob-coturn
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TURN_PUBLIC_IP: ${TURN_PUBLIC_IP:?TURN_PUBLIC_IP is required}
+      TURN_REALM: ${TURN_DOMAIN:?TURN_DOMAIN is required}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:?TURN_SHARED_SECRET is required}
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "turnutils_stunclient 127.0.0.1 -p 3478 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  dokploy-network:
+    external: true

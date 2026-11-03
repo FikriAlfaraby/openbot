@@ -318,6 +318,99 @@
           "simple": { "limit": 300, "period": 60 }
         }
       ]
+    },
+    // Fork: the community's own account service (docs/self-hosting.md). No hosted servers, no payments,
+    // no OpenBot analytics. Deploy with `bun scripts/deploy-auth-api.ts --env community`.
+    "community": {
+      "name": "community-ob-auth-api",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "ob-api.fikrialfaraby.com", "custom_domain": true }],
+      "triggers": {
+        "crons": ["*/5 * * * *"]
+      },
+      "secrets": {
+        "required": [
+          "EMAIL_SMTP_PASSWORD",
+          "SKILLS_ADMIN_TOKEN",
+          "SITE_REPORT_HASH_SECRET",
+          "REMOTE_TICKET_PRIVATE_JWK",
+          "REMOTE_TICKET_PUBLIC_JWKS",
+          "REMOTE_AUTH_WEBHOOK_SECRET"
+        ]
+      },
+      "vars": {
+        "AUTH_EXPOSE_DEVELOPMENT_CODE": "false",
+        "EMAIL_SMTP_HOST": "smtp.gmail.com",
+        "EMAIL_SMTP_PORT": "465",
+        "EMAIL_SMTP_USERNAME": "fikrialfaraby04@gmail.com",
+        "EMAIL_FROM": "fikrialfaraby04@gmail.com",
+        "EMAIL_LICENSE_FROM": "",
+        "SITE_PUBLISH_ENABLED": "false",
+        "SITE_COOKIE_ISOLATION_READY": "false",
+        "REMOTE_TICKET_KEY_ID": "community-1",
+        "REMOTE_SIGNAL_URL": "wss://ob-signal.fikrialfaraby.com/v1/signal",
+        "REMOTE_SIGNAL_HOMES": "",
+        "REMOTE_AUTH_WEBHOOK_URL": "https://ob-signal.fikrialfaraby.com/internal/auth-events",
+        "REMOTE_AUTH_WEBHOOK_URLS": "",
+        "SIGNAL_ENTRY_ZONE_ID": "",
+        "HOSTED_SERVERS_ENABLED": "false",
+        "GITHUB_APP_CLIENT_ID": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "community-ob-auth",
+          "database_id": "7d038236-e8b6-44d6-b2e1-4556c9a40e05",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "AVATARS",
+          "bucket_name": "community-ob-avatars"
+        },
+        {
+          "binding": "SKILLS",
+          "bucket_name": "community-ob-skills"
+        },
+        {
+          "binding": "SITES",
+          "bucket_name": "community-ob-sites"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "MARKETPLACE_INGRESS_RATE_LIMITER",
+          "namespace_id": "2026110301",
+          "simple": { "limit": 300, "period": 60 }
+        },
+        {
+          "name": "MARKETPLACE_MUTATION_RATE_LIMITER",
+          "namespace_id": "2026110302",
+          "simple": { "limit": 30, "period": 60 }
+        },
+        {
+          "name": "MARKETPLACE_UPLOAD_RATE_LIMITER",
+          "namespace_id": "2026110303",
+          "simple": { "limit": 5, "period": 60 }
+        },
+        {
+          "name": "SITE_REPORT_RATE_LIMITER",
+          "namespace_id": "2026110304",
+          "simple": { "limit": 10, "period": 60 }
+        },
+        {
+          "name": "GITHUB_TOKEN_RATE_LIMITER",
+          "namespace_id": "2026110305",
+          "simple": { "limit": 30, "period": 60 }
+        },
+        {
+          "name": "LIVE_ACTIVITY_RATE_LIMITER",
+          "namespace_id": "2026110306",
+          "simple": { "limit": 300, "period": 60 }
+        }
+      ]
     }
   }
 }
