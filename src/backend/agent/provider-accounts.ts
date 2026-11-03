@@ -751,9 +751,16 @@ export class ProviderAccounts {
   #emailTaken(provider: AgentProviderId, accountId: string, email: string): boolean {
     const normalized = email.toLowerCase();
     if (this.#host.defaultEmail(provider)?.toLowerCase() === normalized) return true;
+    // Fork: the key account runs on a saved key, not a sign-in. Its folder can keep the email of an older
+    // sign-in, which must not block the account that is signed in with that email now.
     return this.#store
       .list(provider)
-      .some((other) => other.id !== accountId && this.#states.get(other.id)?.email?.toLowerCase() === normalized);
+      .some(
+        (other) =>
+          other.id !== accountId &&
+          !isKeyAccount(other) &&
+          this.#states.get(other.id)?.email?.toLowerCase() === normalized,
+      );
   }
 
   #interrupt(accountId: string): Effect.Effect<void> {
