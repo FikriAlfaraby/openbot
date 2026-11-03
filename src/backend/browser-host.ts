@@ -157,6 +157,7 @@ import {
   parseBrowserToolCall,
 } from "./browser-tools";
 import { runCauseEffect } from "./effect-boundary";
+import { browserPageChanges } from "./fork/browser-changes";
 import { ticketBrowserSession, usesTicketSession } from "./fork/browser-ticket";
 import type { DynamicToolCallParams, DynamicToolResult } from "./protocol";
 import { isRecord } from "./protocol";
@@ -2217,9 +2218,25 @@ export class BrowserHost {
         browserToolTimeout(call.args.timeoutMs),
         call.tool === "upload_files" ? hooks.onUploadOperationStarted : undefined,
       );
-    return call.args.snapshot
-      ? snapshotTextResult(yield* run(readActionSnapshot))
-      : textResult(yield* run(readActionStatus));
+    if (call.args.snapshot) return snapshotTextResult(yield* run(readActionSnapshot));
+    // Fork: as mac-cua does, an action reports what it changed, so the agent needs no second call to read
+    // the page. With no snapshot yet there is nothing to compare, and the status stays.
+    const before = this.#tabs.get(call.args.tabId)?.engine.lastSnapshot() ?? null;
+    if (!before) return textResult(yield* run(readActionStatus));
+    const after = yield* run(readActionSnapshot);
+    if (!("elements" in after)) return snapshotTextResult(after);
+    const changes = browserPageChanges(before, after);
+    return textResult({
+      tabId: after.tabId,
+      revision: after.revision,
+      url: after.url,
+      title: after.title,
+      loading: after.loading,
+      focus: after.focus,
+      changes,
+      diagnostics: after.diagnostics,
+      actions: after.actions,
+    });
   });
 
   readonly #navigate = Effect.fn("BrowserHost.navigate")(function* <A>(

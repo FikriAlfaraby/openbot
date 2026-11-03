@@ -286,6 +286,18 @@ const RUN_DIALOG_EVENT = "-run-dialog";
 const DIALOG_CLOSED_ERROR = "This dialog is closed. A person answered it, or the page closed it. Read the tab again.";
 const DIALOG_FOR_PERSON_ERROR = "Only a person can answer this dialog in the tab. Ask the user to answer it.";
 
+/**
+ * Fork: the ref of `target` in the snapshot of `revision`. A ref is `<revision>:<frame>:<node>`; one from an
+ * earlier snapshot keeps its frame and node. Null for a ref of another shape or a later revision.
+ */
+function currentSnapshotRef(target: { ref: string; revision: number }, revision: number): string | null {
+  if (target.revision === revision) return target.ref;
+  const separator = target.ref.indexOf(":");
+  if (separator < 0 || target.ref.slice(0, separator) !== String(target.revision) || target.revision > revision)
+    return null;
+  return `${revision}${target.ref.slice(separator)}`;
+}
+
 export class BrowserCdpEngine {
   readonly #contents: WebContents;
   /**
@@ -1805,6 +1817,11 @@ export class BrowserCdpEngine {
   }
 
   /** `value` without the card values that `fillCard` typed in this tab, for a title or a URL. */
+  /** Fork: the last snapshot that the agent was given, for the changes an action reports. */
+  lastSnapshot(): BrowserSnapshot | null {
+    return this.#lastSnapshot;
+  }
+
   scrubText(value: string): string {
     return this.#cardScrub.text(value);
   }
@@ -2709,10 +2726,14 @@ export class BrowserCdpEngine {
       return { x: target.x, y: target.y };
     }
     if (target.kind === "ref") {
-      if (!this.#lastSnapshot || target.revision !== this.#lastSnapshot.revision) {
+      // Fork: a ref of an older snapshot of the same document names the same node in the newest one, as
+      // `<revision>:<frame>:<node>`. An action now reads the page after it, so the refs the agent holds stay
+      // usable; the fingerprint check below still refuses an element that changed.
+      const ref = this.#lastSnapshot ? currentSnapshotRef(target, this.#lastSnapshot.revision) : null;
+      if (!this.#lastSnapshot || ref === null) {
         return yield* browserFailure(new Error("Stale browser reference. Take a fresh snapshot before acting."));
       }
-      const record = this.#targets.get(target.ref);
+      const record = this.#targets.get(ref);
       if (!record)
         return yield* browserFailure(new Error("Element reference is no longer available. Take a fresh snapshot."));
       const sessionId = record.targetId ? this.#targetSessions.get(record.targetId)?.sessionId : undefined;

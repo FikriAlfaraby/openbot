@@ -10,3 +10,6 @@
   links in is OpenBot. Before, that setting worked only for this computer's agents.
 - Paste or attach an image in the message box over the browser page. It shows above the box, and a message
   can go with only the image. Before, an image pasted there went to the chat draft without showing.
+- Make agents faster in the browser. A click or typed text now reports what changed on the page, with refs
+  for the new or changed elements, so the agent goes on without reading the whole page again. Refs from the
+  last read keep working while their element stays.

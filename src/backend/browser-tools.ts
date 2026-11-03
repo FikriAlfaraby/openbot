@@ -104,7 +104,8 @@ const legacyActionSchema = z.discriminatedUnion("type", [
 ]);
 
 /** Input tools return a short status. The model reads the page with `snapshot` when it needs to. */
-const ACTION_RESULT = "Returns a status; pass snapshot: true for a snapshot.";
+const ACTION_RESULT =
+  "Returns what the action changed since the last snapshot: elements added, changed (with refs to act on) or removed, and new page text. Refs of the last snapshot keep working while their element stays. When changes.truncated is true the page changed as a whole: take a snapshot. Pass snapshot: true for the whole page.";
 const actionSnapshot = z.boolean().optional();
 const targetAction = { tabId, target: browserTargetSchema, timeoutMs: timeout, snapshot: actionSnapshot };
 
