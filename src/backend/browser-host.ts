@@ -157,6 +157,7 @@ import {
   parseBrowserToolCall,
 } from "./browser-tools";
 import { runCauseEffect } from "./effect-boundary";
+import { BOT_CHECK_MESSAGE, isBotCheckPage } from "./fork/bot-check";
 import { browserPageChanges } from "./fork/browser-changes";
 import { ticketBrowserSession, usesTicketSession } from "./fork/browser-ticket";
 import type { DynamicToolCallParams, DynamicToolResult } from "./protocol";
@@ -1846,7 +1847,13 @@ export class BrowserHost {
       Effect.gen({ self: this }, function* () {
         const tabId = args.tabId;
         yield* browserSync(() => this.#requireToolTab(params, tabId));
-        return snapshotTextResult(yield* this.#navigate(tabId, args, readActionSnapshot));
+        // Fork: a check for people loads as a page, or holds the load until it times out. Either way the
+        // agent hears it at once instead of waiting on it.
+        const result = yield* this.#navigate(tabId, args, readActionSnapshot).pipe(
+          Effect.catch((failure) => (this.#onBotCheck(tabId) ? this.#botCheckFailure() : Effect.fail(failure))),
+        );
+        if (this.#onBotCheck(tabId)) return yield* this.#botCheckFailure();
+        return snapshotTextResult(result);
       }),
     click: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     type: (call, params, hooks) => this.#runInputTool(call, params, hooks),
@@ -1903,6 +1910,8 @@ export class BrowserHost {
     evaluate: ({ args }, params) =>
       Effect.gen({ self: this }, function* () {
         yield* browserSync(() => this.#requireToolTab(params, args.tabId));
+        // Fork: the script of a check for people keeps the page busy, so an evaluation there waits for minutes.
+        if (this.#onBotCheck(args.tabId)) return yield* this.#botCheckFailure();
         return textResult(
           yield* this.#runEvaluation(
             args.tabId,
@@ -1975,6 +1984,7 @@ export class BrowserHost {
       Effect.gen({ self: this }, function* () {
         const tabId = args.tabId;
         yield* browserSync(() => this.#requireToolTab(params, tabId));
+        if (this.#onBotCheck(tabId)) return yield* this.#botCheckFailure();
         const run: BrowserScriptResult = yield* runBrowserScript({
           script: args.script,
           timeoutMs: args.timeoutMs ?? BROWSER_SCRIPT_DEFAULT_TIMEOUT_MS,
@@ -2115,6 +2125,17 @@ export class BrowserHost {
       contentItems: [{ type: "inputText", text: new BrowserUserControlHeld(outcome.heldTabId).message }],
     };
   }).bind(this);
+
+  /** Fork: whether the tab shows a check for people. A closed or missing tab shows none. */
+  #onBotCheck(tabId: string): boolean {
+    const tab = this.#tabs.get(tabId);
+    if (!tab || tab.contents.isDestroyed()) return false;
+    return isBotCheckPage(tab.contents.getTitle(), tab.contents.getURL());
+  }
+
+  #botCheckFailure(): Effect.Effect<never, BrowserOperationError> {
+    return Effect.fail(browserFailure(new Error(BOT_CHECK_MESSAGE)));
+  }
 
   #toolTabs(params: DynamicToolCallParams): { tabs: BrowserTab[]; activeTabId: string | null } {
     // A page can put a typed card value in its title or address, so they go through the tab's scrub.
