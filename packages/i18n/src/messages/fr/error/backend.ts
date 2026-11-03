@@ -58,6 +58,7 @@ export const messages = {
   "error.backend.chromeKeyDenied":
     "La clé de connexion de Chrome n’a pas été déverrouillée. Réessayez et choisissez Autoriser.",
   "error.backend.chromeProfileMissing": "Ce profil Chrome n’est plus sur ce Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot n’a pas pu appliquer la connexion de Chrome à la page.",
   "error.backend.browserStopUnsupported": "Cet hôte distant ne peut pas arrêter le chargement d’une page.",
   "error.backend.sharedDataLocalOnly": "Les données partagées sont gérées sur l’ordinateur qui exécute ces agents.",
   "error.backend.browserUrlProtocol": "Seules les URL de navigateur HTTP(S) sont autorisées.",

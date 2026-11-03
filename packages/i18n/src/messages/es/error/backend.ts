@@ -57,6 +57,7 @@ export const messages = {
   "error.backend.chromeKeyDenied":
     "No se desbloqueó la clave de inicio de sesión de Chrome. Vuelve a intentarlo y elige Permitir.",
   "error.backend.chromeProfileMissing": "Ese perfil de Chrome ya no está en este Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot no pudo aplicar el inicio de sesión de Chrome a la página.",
   "error.backend.browserStopUnsupported": "Este host remoto no puede detener la carga de una página.",
   "error.backend.sharedDataLocalOnly": "Los datos compartidos se gestionan en el equipo que ejecuta estos agentes.",
   "error.backend.browserUrlProtocol": "Solo se permiten URL HTTP(S) en el navegador.",

@@ -58,6 +58,7 @@ export const messages = {
   "error.backend.chromeKeyDenied":
     "De inlogsleutel van Chrome is niet ontgrendeld. Probeer het opnieuw en kies Sta toe.",
   "error.backend.chromeProfileMissing": "Dat Chrome-profiel staat niet meer op deze Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot kon de login uit Chrome niet op de pagina toepassen.",
   "error.backend.browserStopUnsupported": "Deze externe host kan het laden van een pagina niet stoppen.",
   "error.backend.sharedDataLocalOnly": "Gedeelde gegevens worden beheerd op de computer waarop deze agents draaien.",
   "error.backend.browserUrlProtocol": "Alleen HTTP(S)-URL’s zijn toegestaan in de browser.",

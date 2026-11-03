@@ -56,6 +56,7 @@ export const messages = {
     "OpenBot nie może otworzyć danych Chrome. Zezwól OpenBot w Ustawieniach systemowych › Prywatność i ochrona, a potem spróbuj ponownie.",
   "error.backend.chromeKeyDenied": "Klucz logowania Chrome nie został odblokowany. Spróbuj ponownie i wybierz Pozwól.",
   "error.backend.chromeProfileMissing": "Tego profilu Chrome nie ma już na tym Macu.",
+  "error.backend.chromeSignInImportFailed": "OpenBot nie mógł zastosować logowania z Chrome na stronie.",
   "error.backend.browserStopUnsupported": "Ten zdalny host nie może zatrzymać wczytywania strony.",
   "error.backend.sharedDataLocalOnly": "Dane współdzielone są zarządzane na komputerze, na którym działają ci agenci.",
   "error.backend.browserUrlProtocol": "Dozwolone są tylko adresy URL HTTP(S).",

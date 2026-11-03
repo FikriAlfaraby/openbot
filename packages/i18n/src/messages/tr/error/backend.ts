@@ -55,6 +55,7 @@ export const messages = {
     "OpenBot, Chrome verilerini açamıyor. Sistem Ayarları › Gizlilik ve Güvenlik’te OpenBot’a izin verip tekrar deneyin.",
   "error.backend.chromeKeyDenied": "Chrome’un oturum anahtarının kilidi açılmadı. Tekrar deneyin ve İzin Ver’i seçin.",
   "error.backend.chromeProfileMissing": "Bu Chrome profili artık bu Mac’te değil.",
+  "error.backend.chromeSignInImportFailed": "OpenBot, Chrome oturumunu sayfaya uygulayamadı.",
   "error.backend.browserStopUnsupported": "Bu uzak ana makine sayfa yüklemesini durduramaz.",
   "error.backend.sharedDataLocalOnly": "Paylaşılan veriler bu ajanları çalıştıran bilgisayarda yönetilir.",
   "error.backend.browserUrlProtocol": "Yalnızca HTTP(S) tarayıcı URL'lerine izin verilir.",

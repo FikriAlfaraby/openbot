@@ -56,6 +56,7 @@ export const messages = {
   "error.backend.chromeKeyDenied":
     "Chrome のサインインキーのロックが解除されませんでした。もう一度試して「許可」を選んでください。",
   "error.backend.chromeProfileMissing": "その Chrome のプロフィールはこの Mac にもうありません。",
+  "error.backend.chromeSignInImportFailed": "OpenBot は Chrome のサインインをページに適用できませんでした。",
   "error.backend.browserStopUnsupported": "このリモートホストはページの読み込みを停止できません。",
   "error.backend.sharedDataLocalOnly": "共有データは、これらのエージェントを実行しているコンピューターで管理されます。",
   "error.backend.browserUrlProtocol": "HTTP(S) のブラウザー URL のみ使用できます。",

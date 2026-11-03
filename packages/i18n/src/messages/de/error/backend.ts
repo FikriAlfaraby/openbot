@@ -57,6 +57,7 @@ export const messages = {
   "error.backend.chromeKeyDenied":
     "Der Anmeldeschlüssel von Chrome wurde nicht freigegeben. Versuche es erneut und wähle Erlauben.",
   "error.backend.chromeProfileMissing": "Dieses Chrome-Profil ist nicht mehr auf diesem Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot konnte die Anmeldung aus Chrome nicht auf die Seite anwenden.",
   "error.backend.browserStopUnsupported": "Dieser entfernte Host kann das Laden einer Seite nicht stoppen.",
   "error.backend.sharedDataLocalOnly":
     "Geteilte Daten werden auf dem Computer verwaltet, auf dem diese Agenten laufen.",

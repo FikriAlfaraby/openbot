@@ -52,6 +52,7 @@ export const messages = {
     "OpenBot 无法打开 Chrome 的数据。请在“系统设置 › 隐私与安全性”中允许 OpenBot，然后重试。",
   "error.backend.chromeKeyDenied": "Chrome 的登录密钥未解锁。请重试并选择“允许”。",
   "error.backend.chromeProfileMissing": "该 Chrome 个人资料已不在此 Mac 上。",
+  "error.backend.chromeSignInImportFailed": "OpenBot 无法把 Chrome 的登录状态应用到该页面。",
   "error.backend.browserStopUnsupported": "该远程主机无法停止页面加载。",
   "error.backend.sharedDataLocalOnly": "共享数据在运行这些助手的电脑上管理。",
   "error.backend.browserUrlProtocol": "只允许使用 HTTP(S) 浏览器地址。",

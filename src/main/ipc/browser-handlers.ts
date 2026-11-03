@@ -24,6 +24,7 @@ import {
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import type { WebContents } from "electron";
 import type { BrowserHost } from "../../backend/browser-host";
 import { runCauseEffect } from "../../backend/effect-boundary";
@@ -82,6 +83,8 @@ export interface BrowserIpcDependencies {
   browserView: Pick<BrowserViewClient, "start" | "stop" | "sendInput">;
   localSignIn: LocalSignInWindows;
 }
+
+const chromeSignInLogger = createOpenBotLogger("chrome-sign-in");
 
 export function browserIpcHandlers({
   browserPictureInPicture,
@@ -303,12 +306,23 @@ export function browserIpcHandlers({
           const url = tabs.find((tab) => tab.id === tabId)?.url;
           return url && URL.canParse(url) && /^https?:$/u.test(new URL(url).protocol) ? new URL(url).hostname : null;
         };
+        // A failure here loses its message over the Effect boundary, so log the cause and rethrow a
+        // clear reason for the menu.
+        const reportFailure = (cause: unknown): never => {
+          chromeSignInLogger.warn("The sign-in from Chrome could not be imported.", { cause: toLogValue(cause) });
+          if (cause instanceof Error && cause.message) throw cause;
+          throw new Error(sourceText("error.backend.chromeSignInImportFailed"));
+        };
         return routeToServer(remoteServers.activeServerId, {
           local: async () => {
             const host = tabHost(await browser.listTabs());
             const cookies = host ? await readChromeSignIn(profileId, host) : [];
             if (cookies.length === 0) return { cookies: 0 };
-            return { cookies: await runCauseEffect(browser.importSignIn(tabId, cookies)) };
+            try {
+              return { cookies: await runCauseEffect(browser.importSignIn(tabId, cookies)) };
+            } catch (cause) {
+              return reportFailure(cause);
+            }
           },
           remote: async (serverId) => {
             if (!remoteServers.supportsCapability(serverId, BROWSER_SIGN_IN_CAPABILITY))
@@ -319,13 +333,17 @@ export function browserIpcHandlers({
             const host = tabHost(tabs);
             const cookies = host ? await readChromeSignIn(profileId, host) : [];
             if (cookies.length === 0) return { cookies: 0 };
-            const result = await runCauseEffect(
-              remoteServers.request(serverId, BROWSER_SIGN_IN_ROUTES.import, decodeBrowserSignInResult, {
-                method: "POST",
-                body: { tabId, cookies },
-              }),
-            );
-            return { cookies: result.cookies };
+            try {
+              const result = await runCauseEffect(
+                remoteServers.request(serverId, BROWSER_SIGN_IN_ROUTES.import, decodeBrowserSignInResult, {
+                  method: "POST",
+                  body: { tabId, cookies },
+                }),
+              );
+              return { cookies: result.cookies };
+            } catch (cause) {
+              return reportFailure(cause);
+            }
           },
         });
       }),

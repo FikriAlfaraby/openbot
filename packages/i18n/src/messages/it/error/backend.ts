@@ -55,6 +55,7 @@ export const messages = {
     "OpenBot non può aprire i dati di Chrome. Consenti OpenBot in Impostazioni di Sistema › Privacy e sicurezza, poi riprova.",
   "error.backend.chromeKeyDenied": "La chiave di accesso di Chrome non è stata sbloccata. Riprova e scegli Consenti.",
   "error.backend.chromeProfileMissing": "Quel profilo di Chrome non è più su questo Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot non è riuscito ad applicare l’accesso da Chrome alla pagina.",
   "error.backend.browserStopUnsupported": "Questo host remoto non può interrompere il caricamento di una pagina.",
   "error.backend.sharedDataLocalOnly": "I dati condivisi sono gestiti sul computer su cui girano questi agenti.",
   "error.backend.browserUrlProtocol": "Sono consentiti solo URL del browser HTTP(S).",

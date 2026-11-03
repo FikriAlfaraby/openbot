@@ -54,6 +54,7 @@ export const messages = {
     "OpenBot이 Chrome 데이터를 열 수 없어요. 시스템 설정 › 개인정보 보호 및 보안에서 OpenBot을 허용한 다음 다시 시도하세요.",
   "error.backend.chromeKeyDenied": "Chrome 로그인 키가 잠금 해제되지 않았어요. 다시 시도하고 허용을 선택하세요.",
   "error.backend.chromeProfileMissing": "그 Chrome 프로필은 이제 이 Mac에 없어요.",
+  "error.backend.chromeSignInImportFailed": "OpenBot이 Chrome 로그인 정보를 페이지에 적용하지 못했어요.",
   "error.backend.browserStopUnsupported": "이 원격 호스트는 페이지 로딩을 중지할 수 없어요.",
   "error.backend.sharedDataLocalOnly": "공유 데이터는 이 에이전트를 실행하는 컴퓨터에서 관리해요.",
   "error.backend.browserUrlProtocol": "브라우저 URL은 HTTP(S)만 사용할 수 있어요.",

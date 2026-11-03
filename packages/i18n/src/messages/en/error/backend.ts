@@ -54,6 +54,7 @@ export const messages = defineMessages("error.backend", {
     "OpenBot cannot open Chrome’s data. Allow OpenBot in System Settings › Privacy & Security, then try again.",
   "error.backend.chromeKeyDenied": "Chrome’s sign-in key was not unlocked. Try again and select Allow.",
   "error.backend.chromeProfileMissing": "That Chrome profile is no longer on this Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot could not apply the sign-in from Chrome to the page.",
   "error.backend.browserStopUnsupported": "This remote host cannot stop a page load.",
   "error.backend.sharedDataLocalOnly": "Shared data is managed on the computer that runs these agents.",
   "error.backend.browserUrlProtocol": "Only HTTP(S) browser URLs are allowed.",

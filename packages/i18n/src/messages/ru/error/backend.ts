@@ -54,6 +54,7 @@ export const messages = {
     "OpenBot не может открыть данные Chrome. Разрешите OpenBot в Системных настройках › Конфиденциальность и безопасность и попробуйте снова.",
   "error.backend.chromeKeyDenied": "Ключ входа Chrome не был разблокирован. Попробуйте снова и выберите «Разрешить».",
   "error.backend.chromeProfileMissing": "Этого профиля Chrome больше нет на этом Mac.",
+  "error.backend.chromeSignInImportFailed": "OpenBot не удалось применить вход из Chrome к странице.",
   "error.backend.browserStopUnsupported": "Этот удалённый хост не может остановить загрузку страницы.",
   "error.backend.sharedDataLocalOnly": "Общими данными управляют на компьютере, где работают эти агенты.",
   "error.backend.browserUrlProtocol": "Допускаются только URL браузера с HTTP(S).",
