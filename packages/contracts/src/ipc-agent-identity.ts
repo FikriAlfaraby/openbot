@@ -11,8 +11,22 @@ import { type DynamicRecord, isBoolean, isDynamicRecord, isOneOf, isString } fro
 
 export type AgentModelId = string;
 
-export const AGENT_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+/** From the least reasoning to the most. Each provider lists the levels that a model takes. */
+export const AGENT_REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
 export type AgentReasoningEffort = (typeof AGENT_REASONING_EFFORTS)[number];
+
+/**
+ * The levels that released IPC and Team API peers know. Do not change this list: a peer that reads
+ * only these levels refuses a model list that has another one.
+ */
+export const LEGACY_AGENT_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type LegacyAgentReasoningEffort = (typeof LEGACY_AGENT_REASONING_EFFORTS)[number];
+
+/** The nearest level that a released peer knows: `none` and `minimal` are `low`, `ultra` is `max`. */
+export function legacyReasoningEffort(effort: AgentReasoningEffort): LegacyAgentReasoningEffort {
+  if (effort === "none" || effort === "minimal") return "low";
+  return effort === "ultra" ? "max" : effort;
+}
 
 export const AVATAR_HUES = [0, 30, 55, 100, 150, 185, 215, 245, 280, 320] as const;
 export type AvatarHue = (typeof AVATAR_HUES)[number];
@@ -71,6 +85,14 @@ export function isAvatarHue(value: unknown): value is AvatarHue {
   return isOneOf(AVATAR_HUES, value);
 }
 
+/**
+ * How the model picker of a server lists a model. `new`: the model came out in the last days, and the
+ * picker labels it. `older`: the server shows a newer model in its place, so the picker folds it
+ * under Older models. Absent: a plain row.
+ */
+export const AGENT_MODEL_LISTINGS = ["new", "older"] as const;
+export type AgentModelListing = (typeof AGENT_MODEL_LISTINGS)[number];
+
 export interface AgentModelOption {
   provider: AgentProviderId;
   id: AgentModelId;
@@ -88,6 +110,8 @@ export interface AgentModelOption {
    * the model has no fast mode.
    */
   fastServiceTier?: string;
+  /** See `AgentModelListing`. The released Team API model list does not carry it; `model-visibility-v1` does. */
+  listing?: AgentModelListing;
 }
 
 export function isAgentModelOption(value: unknown): value is AgentModelOption {
@@ -110,6 +134,7 @@ function hasAgentModelOptionFields(value: DynamicRecord): boolean {
     Array.isArray(value.supportedReasoningEfforts) &&
     value.supportedReasoningEfforts.every(isReasoningEffort) &&
     (value.reasoningEffortConfigurable === undefined || isBoolean(value.reasoningEffortConfigurable)) &&
-    (value.fastServiceTier === undefined || isBoundedString(value.fastServiceTier, INPUT_LIMITS.serviceTier))
+    (value.fastServiceTier === undefined || isBoundedString(value.fastServiceTier, INPUT_LIMITS.serviceTier)) &&
+    (value.listing === undefined || isOneOf(AGENT_MODEL_LISTINGS, value.listing))
   );
 }

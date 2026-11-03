@@ -375,6 +375,7 @@ export class BrowserHost {
   readonly #browserProfile: (agentId: string) => AgentBrowserProfile;
   readonly #profileExists: (profileId: string) => boolean;
   readonly #forkTicketOf: (threadId: string) => string | null;
+  readonly #quitShortcut: (input: Input) => boolean;
   readonly #downloadsRoot: string;
   readonly #statePath: string;
   readonly #tabs = new Map<string, BrowserHostTab>();
@@ -428,6 +429,8 @@ export class BrowserHost {
       profileExists?: (profileId: string) => boolean;
       /** Fork (item 4.3): the live ticket whose worker runs in this thread, or null. */
       forkTicketOf?: (threadId: string) => string | null;
+      /** True when the key is part of the Mac quit shortcut, which a focused tab must not give to the menu. */
+      quitShortcut?: (input: Input) => boolean;
     } = {},
   ) {
     this.#window = window;
@@ -435,6 +438,7 @@ export class BrowserHost {
     this.#browserProfile = options.browserProfile ?? (() => ({ kind: "shared" }));
     this.#profileExists = options.profileExists ?? (() => false);
     this.#forkTicketOf = options.forkTicketOf ?? (() => null);
+    this.#quitShortcut = options.quitShortcut ?? (() => false);
     this.#downloadsRoot = downloadsRoot;
     this.#statePath = statePath;
     this.#session = session.fromPartition("persist:openbot-browser", { cache: true });
@@ -2078,7 +2082,9 @@ export class BrowserHost {
     list_logins: rejectTakeoverTool,
     list_vault_items: rejectTakeoverTool,
     save_vault_item: rejectTakeoverTool,
+    request_vault_item: rejectTakeoverTool,
     delete_vault_item: rejectTakeoverTool,
+    request_link_payment: rejectTakeoverTool,
   };
 
   readonly handleDynamicTool = Effect.fn("BrowserHost.handleDynamicTool")(function* (
@@ -2838,6 +2844,12 @@ export class BrowserHost {
         });
     });
     contents.on("before-input-event", (event, input) => {
+      // Only a tab in the main window: a Picture in Picture tab leaves Cmd+Q to the menu item, which asks
+      // first, because the hint shows in the main window and that window can be hidden.
+      if (this.#mountedViews.get(tab.view) === this.#window && this.#quitShortcut(input)) {
+        event.preventDefault();
+        return;
+      }
       if (isToggleDevToolsShortcut(input)) {
         event.preventDefault();
         this.#window.webContents.toggleDevTools();

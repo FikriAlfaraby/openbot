@@ -1,3 +1,4 @@
+import type { ExpressionId } from "@norbert_bodziony/bloub";
 import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
@@ -14,7 +15,13 @@ import type {
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
 import { Button, Field, Input, Textarea } from "@openbot/ui";
 import { createSignal, For, onSettled, Show } from "solid-js";
-import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../bloub-avatar";
+import {
+  AVATAR_HUE_CHOICES,
+  avatarHeadColor,
+  avatarHueSwatch,
+  avatarSeedForFace,
+  type SupportedAvatarSilhouetteId,
+} from "../../bloub-avatar";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
@@ -45,7 +52,6 @@ export interface FirstAgentSuggestion {
   purposeKey: AppTextKey;
   avatarSeed: string;
   avatarHue: AvatarHue;
-  animationCycleOffset: number;
   animationOffset: number;
 }
 
@@ -73,13 +79,35 @@ export interface FirstAgentSetupProps {
   onCancel?: (() => void) | undefined;
 }
 
-export const FIRST_AGENT_AVATAR_SEEDS = avatarCandidateSeeds("first-bot", "first-bot", 0);
+/**
+ * The faces a new agent can start with. Each has open eyes, and only a few are wide. The eyes set
+ * the automatic color, so the order puts a different color next to each face. The suggestions take
+ * faces 2-7 and set their own color.
+ */
+const FIRST_AGENT_FACES: ReadonlyArray<{ shape: SupportedAvatarSilhouetteId; expression: ExpressionId }> = [
+  { shape: "cercle", expression: "attentif" },
+  { shape: "squircle", expression: "curieux" },
+  { shape: "triangle", expression: "neutre" },
+  { shape: "hexagone", expression: "surpris" },
+  { shape: "carre", expression: "attentif" },
+  { shape: "galet", expression: "curieux" },
+  { shape: "pentagone", expression: "neutre" },
+  { shape: "capsule", expression: "attentif" },
+  { shape: "losange", expression: "curieux" },
+  { shape: "nuage", expression: "surpris" },
+  { shape: "squircle", expression: "neutre" },
+  { shape: "cercle", expression: "curieux" },
+];
+
+export const FIRST_AGENT_AVATAR_SEEDS = FIRST_AGENT_FACES.map((face) => avatarSeedForFace("first-bot", face));
 
 const SUGGESTION_MOMENTUM_FRICTION = 0.88;
 const SUGGESTION_MOMENTUM_MINIMUM = 0.01;
 const SUGGESTION_MOMENTUM_MAXIMUM = 1.75;
 const SUGGESTION_DRAG_THRESHOLD = 8;
 const MOTION_FRAME_DURATION = 1000 / 60;
+/** The face choices are 24px. At the default eye size their eyes are too small to compare. */
+const FACE_CHOICE_EYE_SCALE = 1.25;
 
 /**
  * A new draft. Its name is the default name in the interface language when the draft is made: the
@@ -106,7 +134,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.inboxHelper.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[1] ?? "first-bot:inbox",
     avatarHue: 320,
-    animationCycleOffset: 0,
     animationOffset: 0.15,
   },
   {
@@ -116,7 +143,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.tripPlanner.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[2] ?? "first-bot:travel",
     avatarHue: 215,
-    animationCycleOffset: 2,
     animationOffset: 0.65,
   },
   {
@@ -126,7 +152,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.personalOrganizer.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[3] ?? "first-bot:organizer",
     avatarHue: 55,
-    animationCycleOffset: 4,
     animationOffset: 1.2,
   },
   {
@@ -136,7 +161,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.shoppingScout.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[4] ?? "first-bot:shopping",
     avatarHue: 150,
-    animationCycleOffset: 6,
     animationOffset: 1.8,
   },
   {
@@ -146,7 +170,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.writingPartner.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[5] ?? "first-bot:writing",
     avatarHue: 30,
-    animationCycleOffset: 8,
     animationOffset: 2.45,
   },
   {
@@ -156,7 +179,6 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
     purposeKey: "agent.setup.suggestion.learningCoach.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[6] ?? "first-bot:learning",
     avatarHue: 245,
-    animationCycleOffset: 10,
     animationOffset: 3.15,
   },
 ];
@@ -325,8 +347,13 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
     props.value.reasoningEffort ?? modelOption(props.value.provider, props.value.model)?.defaultReasoningEffort;
 
   /** A new model keeps the chosen level when it supports it, and else starts on its own default. */
-  function selectModel(model: AgentModelId, provider: AgentProviderId): void {
-    const kept = props.value.reasoningEffort;
+  function selectModel(
+    model: AgentModelId,
+    provider: AgentProviderId,
+    _accountId?: string | null,
+    effort?: AgentReasoningEffort,
+  ): void {
+    const kept = effort ?? props.value.reasoningEffort;
     updateDraft({
       model,
       provider,
@@ -442,6 +469,7 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                       hue={props.value.avatarHue}
                       motion="idle"
                       animationOffset={index() * 0.16}
+                      eyeScale={FACE_CHOICE_EYE_SCALE}
                     />
                   </Button>
                 )}
@@ -544,7 +572,6 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                       variant="ghost"
                       type="button"
                       class="first-agent-suggestion-card"
-                      data-animation-cycle-offset={suggestion.animationCycleOffset}
                       data-animation-offset={suggestion.animationOffset}
                       aria-label={t("agent.setup.suggestion.label", {
                         name: t(suggestion.nameKey),
@@ -561,7 +588,6 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                         seed={suggestion.avatarSeed}
                         hue={suggestion.avatarHue}
                         motion="always"
-                        cycleOffset={suggestion.animationCycleOffset}
                         animationOffset={suggestion.animationOffset}
                       />
                       <span>
