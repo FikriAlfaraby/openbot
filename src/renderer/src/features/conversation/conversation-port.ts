@@ -27,7 +27,9 @@ export interface ConversationPort {
   browser: Pick<
     OpenBotDesktopApi["browser"],
     | "capturePreview"
+    | "chromeProfiles"
     | "finishLocalSignIn"
+    | "importChromeSignIn"
     | "onLiveViewEvent"
     | "openLocalSignIn"
     | "sendLiveViewInput"

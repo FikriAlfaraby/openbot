@@ -1,6 +1,7 @@
-import { buttonVariants, DropdownMenu, Ellipsis } from "@openbot/ui";
+import type { BrowserChromeProfile } from "@openbot/contracts/ipc";
+import { buttonVariants, ChevronRight, DropdownMenu, Ellipsis } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { BrowserShortcutHint } from "./BrowserTabIcon";
 import { type BrowserFullViewProps, browserTabStoppable } from "./browser-full-view-types";
 import { useBrowserPageCover } from "./browser-page-cover";
@@ -84,10 +85,75 @@ export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boo
               </DropdownMenu.Item>
             )}
           </Show>
+          <Show when={props.view.chromeSignIn}>
+            {(chrome) => <ChromeSignInMenu chrome={chrome()} tabId={tab()?.id} />}
+          </Show>
           <DropdownMenu.Separator />
           <DropdownMenu.Item onSelect={props.view.onBack}>{t("browser.hide")}</DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+}
+
+type ChromeProfiles = { state: "loading" } | { state: "ready"; profiles: BrowserChromeProfile[] } | { state: "failed" };
+
+/** Fork: the Chrome profiles of this Mac, read when the submenu opens, so macOS asks only on use. */
+function ChromeSignInMenu(props: {
+  chrome: NonNullable<BrowserFullViewProps["chromeSignIn"]>;
+  tabId: string | undefined;
+}) {
+  const { t } = useText();
+  const [profiles, setProfiles] = createSignal<ChromeProfiles>({ state: "loading" });
+  const readyProfiles = () => {
+    const current = profiles();
+    return current.state === "ready" ? current.profiles : undefined;
+  };
+  const load = (open: boolean) => {
+    if (!open) return;
+    setProfiles({ state: "loading" });
+    props.chrome.loadProfiles().then(
+      (list) => setProfiles({ state: "ready", profiles: list }),
+      () => setProfiles({ state: "failed" }),
+    );
+  };
+  return (
+    <DropdownMenu.Sub onOpenChange={load}>
+      <DropdownMenu.SubTrigger disabled={!props.tabId}>
+        {t("browser.chromeSignIn.menu")}
+        <ChevronRight class="agent-context-submenu-chevron size-4" aria-hidden="true" />
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.SubContent>
+          <Switch>
+            <Match when={profiles().state === "loading"}>
+              <DropdownMenu.Item disabled>{t("browser.chromeSignIn.loading")}</DropdownMenu.Item>
+            </Match>
+            <Match when={profiles().state === "failed"}>
+              <DropdownMenu.Item disabled>{t("browser.chromeSignIn.failed")}</DropdownMenu.Item>
+            </Match>
+            <Match when={readyProfiles()}>
+              {(list) => (
+                <For
+                  each={list()}
+                  keyed={(profile) => profile.id}
+                  fallback={<DropdownMenu.Item disabled>{t("browser.chromeSignIn.empty")}</DropdownMenu.Item>}
+                >
+                  {(profile) => (
+                    <DropdownMenu.Item
+                      onSelect={() => {
+                        if (props.tabId) props.chrome.onImport(props.tabId, profile());
+                      }}
+                    >
+                      {profile().name}
+                    </DropdownMenu.Item>
+                  )}
+                </For>
+              )}
+            </Match>
+          </Switch>
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
   );
 }

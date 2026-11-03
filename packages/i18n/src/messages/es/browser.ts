@@ -144,6 +144,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} todavía muestra una página de inicio de sesión de {site}. Termina el inicio de sesión en la ventana.",
   "browser.signIn.failed": "OpenBot no pudo enviar el inicio de sesión.",
+  "browser.chromeSignIn.menu": "Iniciar sesión con Chrome",
+  "browser.chromeSignIn.loading": "Leyendo perfiles de Chrome…",
+  "browser.chromeSignIn.empty": "No hay perfiles de Chrome en este Mac",
+  "browser.chromeSignIn.sent": "Sesión iniciada en {site} con el perfil de Chrome {profile}",
+  "browser.chromeSignIn.notFound":
+    "El perfil de Chrome {profile} no tiene una sesión en {site}. Inicia sesión en {site} en Chrome primero.",
+  "browser.chromeSignIn.failed": "OpenBot no pudo leer el inicio de sesión de Chrome.",
   "browser.profiles.title": "Perfiles del navegador",
   "browser.profiles.subtitle":
     "Cada perfil guarda sus propios inicios de sesión, cookies y datos de sitios en el equipo que ejecuta OpenBot.",

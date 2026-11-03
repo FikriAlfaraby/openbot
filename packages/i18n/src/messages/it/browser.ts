@@ -143,6 +143,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} mostra ancora una pagina di accesso di {site}. Completa l’accesso nella finestra.",
   "browser.signIn.failed": "OpenBot non è riuscito a inviare l’accesso.",
+  "browser.chromeSignIn.menu": "Accedi con Chrome",
+  "browser.chromeSignIn.loading": "Lettura dei profili di Chrome…",
+  "browser.chromeSignIn.empty": "Nessun profilo di Chrome su questo Mac",
+  "browser.chromeSignIn.sent": "Accesso a {site} effettuato con il profilo Chrome {profile}",
+  "browser.chromeSignIn.notFound":
+    "Il profilo Chrome {profile} non ha un accesso per {site}. Accedi prima a {site} in Chrome.",
+  "browser.chromeSignIn.failed": "OpenBot non è riuscito a leggere l’accesso da Chrome.",
   "browser.profiles.title": "Profili del browser",
   "browser.profiles.subtitle":
     "Ogni profilo mantiene accessi, cookie e dati dei siti propri sul computer su cui gira OpenBot.",

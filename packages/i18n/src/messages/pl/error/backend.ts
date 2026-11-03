@@ -51,6 +51,11 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "Ten zdalny host nie może przyjąć logowania z tego komputera.",
   "error.backend.browserSignInOpenFailed": "OpenBot nie mógł otworzyć okna logowania.",
   "error.backend.browserSignInReadFailed": "OpenBot nie mógł odczytać logowania z okna.",
+  "error.backend.chromeSignInMacOnly": "Logowanie przez Chrome działa tylko na Macu.",
+  "error.backend.chromeDataBlocked":
+    "OpenBot nie może otworzyć danych Chrome. Zezwól OpenBot w Ustawieniach systemowych › Prywatność i ochrona, a potem spróbuj ponownie.",
+  "error.backend.chromeKeyDenied": "Klucz logowania Chrome nie został odblokowany. Spróbuj ponownie i wybierz Pozwól.",
+  "error.backend.chromeProfileMissing": "Tego profilu Chrome nie ma już na tym Macu.",
   "error.backend.browserStopUnsupported": "Ten zdalny host nie może zatrzymać wczytywania strony.",
   "error.backend.sharedDataLocalOnly": "Dane współdzielone są zarządzane na komputerze, na którym działają ci agenci.",
   "error.backend.browserUrlProtocol": "Dozwolone są tylko adresy URL HTTP(S).",

@@ -1,4 +1,4 @@
-import type { BrowserControlSession, BrowserPreview, BrowserTab } from "@openbot/contracts/ipc";
+import type { BrowserChromeProfile, BrowserControlSession, BrowserPreview, BrowserTab } from "@openbot/contracts/ipc";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
@@ -382,6 +382,26 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       .catch(() => undefined);
   }
 
+  /** Fork: a web page of the local browser, or of a remote server that takes a sign-in, can take one from Chrome. */
+  const canSignInWithChrome = (tab: BrowserTab | undefined) =>
+    !deps.props.runtime &&
+    (deps.props.server?.kind === "local" ||
+      (deps.props.server?.kind === "remote" && serverSupportsCapability(deps.props.server, "browser-sign-in"))) &&
+    webHost(tab?.url) !== null;
+
+  async function signInWithChrome(tabId: string, profile: BrowserChromeProfile) {
+    const site = webHost(allBrowserTabs().find((entry) => entry.id === tabId)?.url);
+    if (!site) return;
+    const { t, errorMessage } = currentText();
+    try {
+      const { cookies } = await conversationPort().browser.importChromeSignIn({ tabId, profileId: profile.id });
+      if (cookies > 0) toast.success(t("browser.chromeSignIn.sent", { site, profile: profile.name }));
+      else toast.warning(t("browser.chromeSignIn.notFound", { site, profile: profile.name }));
+    } catch (error) {
+      toast.error(errorMessage(error, t("browser.chromeSignIn.failed")));
+    }
+  }
+
   const agentsByThreadId = createMemo(() => new Map(deps.props.agents.map((agent) => [agent.threadId, agent])));
 
   // Single pass, no copy and no localeCompare sort per evaluation.
@@ -673,6 +693,11 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       reopen: openLocalSignInWindow,
       finish: () => finishLocalSignIn(),
       cancel: cancelLocalSignIn,
+    },
+    chromeSignIn: {
+      canStart: canSignInWithChrome,
+      loadProfiles: () => conversationPort().browser.chromeProfiles(),
+      start: signInWithChrome,
     },
     activeBrowserControl,
     actingBrowserControl,

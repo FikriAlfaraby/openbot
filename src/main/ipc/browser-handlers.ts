@@ -30,6 +30,7 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { BrowserPictureInPicture } from "../browser-picture-in-picture";
 import { isBrowserSignedInPage } from "../browser-sign-in-page";
 import type { BrowserViewClient } from "../browser-view-client";
+import { listChromeProfiles, readChromeSignIn } from "../fork/chrome-sign-in";
 import type { LocalSignInWindows } from "../local-sign-in-window";
 import {
   decodeBrowserControlState,
@@ -44,6 +45,7 @@ import {
   parseBrowserBounds,
   parseBrowserNavigate,
   parseBrowserOpen,
+  parseChromeSignIn,
   parseLocalSignIn,
   parseLocalSignInFinish,
   parseVisibility,
@@ -74,6 +76,7 @@ export interface BrowserIpcDependencies {
     | "getControlState"
     | "capturePreview"
     | "setVisible"
+    | "importSignIn"
   >;
   remoteServers: Pick<RemoteServerManager, "activeServerId" | "supportsCapability" | "request">;
   browserView: Pick<BrowserViewClient, "start" | "stop" | "sendInput">;
@@ -290,6 +293,41 @@ export function browserIpcHandlers({
         }
         await runCauseEffect(localSignIn.discard());
         return { cookies: result.cookies, signedIn: true };
+      }),
+      // Fork: the sign-in of the tab's site from a Chrome profile on this Mac, through the same import
+      // as a sign-in on this computer. Only the site's cookies leave this Mac, and the host keeps only
+      // those of the site the tab shows.
+      chromeProfiles: handler(() => listChromeProfiles()),
+      importChromeSignIn: payloadHandler(parseChromeSignIn, ({ tabId, profileId }) => {
+        const tabHost = (tabs: readonly BrowserTab[]) => {
+          const url = tabs.find((tab) => tab.id === tabId)?.url;
+          return url && URL.canParse(url) && /^https?:$/u.test(new URL(url).protocol) ? new URL(url).hostname : null;
+        };
+        return routeToServer(remoteServers.activeServerId, {
+          local: async () => {
+            const host = tabHost(await browser.listTabs());
+            const cookies = host ? await readChromeSignIn(profileId, host) : [];
+            if (cookies.length === 0) return { cookies: 0 };
+            return { cookies: await runCauseEffect(browser.importSignIn(tabId, cookies)) };
+          },
+          remote: async (serverId) => {
+            if (!remoteServers.supportsCapability(serverId, BROWSER_SIGN_IN_CAPABILITY))
+              throw new Error(sourceText("error.backend.browserSignInUnsupported"));
+            const tabs = await runCauseEffect(
+              remoteServers.request(serverId, TEAM_API_ROUTES.browser.tabs, decodeBrowserTabs),
+            );
+            const host = tabHost(tabs);
+            const cookies = host ? await readChromeSignIn(profileId, host) : [];
+            if (cookies.length === 0) return { cookies: 0 };
+            const result = await runCauseEffect(
+              remoteServers.request(serverId, BROWSER_SIGN_IN_ROUTES.import, decodeBrowserSignInResult, {
+                method: "POST",
+                body: { tabId, cookies },
+              }),
+            );
+            return { cookies: result.cookies };
+          },
+        });
       }),
       takeControl: payloadHandler(stringPayload("tabId"), (tabId) =>
         routeToServer(remoteServers.activeServerId, {

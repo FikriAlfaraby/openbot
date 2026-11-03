@@ -1,6 +1,7 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   BrowserBounds,
+  BrowserChromeSignInInput,
   BrowserLocalSignInFinish,
   BrowserLocalSignInInput,
   BrowserNavigateInput,
@@ -88,6 +89,14 @@ export function parseLocalSignIn(value: unknown): BrowserLocalSignInInput {
   const url = requireString(value.url, "url", INPUT_LIMITS.browserUrl);
   if (!/^https?:\/\//i.test(url)) throw new Error(sourceText("error.backend.browserUrlProtocol"));
   return { tabId: requireString(value.tabId, "tabId"), url };
+}
+
+/** Fork: a Chrome profile folder name only, so the main side never reads another path. */
+export function parseChromeSignIn(value: unknown): BrowserChromeSignInInput {
+  if (!isObject(value)) throw new Error("Invalid Chrome sign-in request.");
+  const profileId = requireString(value.profileId, "profileId", 64);
+  if (!/^(?:Default|Profile \d+)$/u.test(profileId)) throw new Error("Invalid Chrome sign-in request.");
+  return { tabId: requireString(value.tabId, "tabId"), profileId };
 }
 
 export function parseLocalSignInFinish(value: unknown): BrowserLocalSignInFinish {

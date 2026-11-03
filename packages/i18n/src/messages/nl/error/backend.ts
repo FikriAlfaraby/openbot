@@ -52,6 +52,12 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "Deze externe host kan geen inlog van deze computer overnemen.",
   "error.backend.browserSignInOpenFailed": "OpenBot kon het inlogvenster niet openen.",
   "error.backend.browserSignInReadFailed": "OpenBot kon de inlog niet uit het venster lezen.",
+  "error.backend.chromeSignInMacOnly": "Inloggen met Chrome werkt alleen op een Mac.",
+  "error.backend.chromeDataBlocked":
+    "OpenBot kan de gegevens van Chrome niet openen. Sta OpenBot toe in Systeeminstellingen › Privacy en beveiliging en probeer het opnieuw.",
+  "error.backend.chromeKeyDenied":
+    "De inlogsleutel van Chrome is niet ontgrendeld. Probeer het opnieuw en kies Sta toe.",
+  "error.backend.chromeProfileMissing": "Dat Chrome-profiel staat niet meer op deze Mac.",
   "error.backend.browserStopUnsupported": "Deze externe host kan het laden van een pagina niet stoppen.",
   "error.backend.sharedDataLocalOnly": "Gedeelde gegevens worden beheerd op de computer waarop deze agents draaien.",
   "error.backend.browserUrlProtocol": "Alleen HTTP(S)-URL’s zijn toegestaan in de browser.",

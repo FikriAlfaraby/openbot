@@ -142,6 +142,13 @@ export const messages = {
   "browser.signIn.notFound": "O OpenBot não encontrou um login para {site}. Entre na janela e selecione Concluído.",
   "browser.signIn.stillSignedOut": "{server} ainda mostra uma página de login de {site}. Termine o login na janela.",
   "browser.signIn.failed": "O OpenBot não conseguiu enviar o login.",
+  "browser.chromeSignIn.menu": "Entrar com o Chrome",
+  "browser.chromeSignIn.loading": "Lendo perfis do Chrome…",
+  "browser.chromeSignIn.empty": "Nenhum perfil do Chrome neste Mac",
+  "browser.chromeSignIn.sent": "Login em {site} feito com o perfil do Chrome {profile}",
+  "browser.chromeSignIn.notFound":
+    "O perfil do Chrome {profile} não tem login em {site}. Entre em {site} no Chrome primeiro.",
+  "browser.chromeSignIn.failed": "O OpenBot não conseguiu ler o login do Chrome.",
   "browser.profiles.title": "Perfis do navegador",
   "browser.profiles.subtitle":
     "Cada perfil mantém logins, cookies e dados de sites próprios no computador que executa o OpenBot.",

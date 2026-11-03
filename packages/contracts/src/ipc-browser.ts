@@ -238,6 +238,23 @@ export interface BrowserLocalSignInResult {
   signedIn: boolean;
 }
 
+/** Fork: a Chrome profile on this Mac that a tab can take the sign-in of its site from. */
+export interface BrowserChromeProfile {
+  id: string;
+  name: string;
+}
+
+/** Fork: sends the sign-in of the tab's site from a Chrome profile on this Mac to the tab. */
+export interface BrowserChromeSignInInput {
+  tabId: string;
+  profileId: string;
+}
+
+/** The count of cookies that the tab's server set. Zero when the profile has no sign-in for the site. */
+export interface BrowserChromeSignInResult {
+  cookies: number;
+}
+
 export type BrowserNavigationDirection = "back" | "forward";
 
 export type BrowserNavigateInput =

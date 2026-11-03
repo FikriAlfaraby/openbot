@@ -147,6 +147,13 @@ export const messages = defineMessages("browser", {
   "browser.signIn.notFound": "OpenBot found no sign-in for {site}. Sign in in the window, then select Done.",
   "browser.signIn.stillSignedOut": "{server} still shows a sign-in page for {site}. Finish the sign-in in the window.",
   "browser.signIn.failed": "OpenBot could not send the sign-in.",
+  "browser.chromeSignIn.menu": "Sign in with Chrome",
+  "browser.chromeSignIn.loading": "Reading Chrome profiles…",
+  "browser.chromeSignIn.empty": "No Chrome profile on this Mac",
+  "browser.chromeSignIn.sent": "Signed in to {site} with Chrome profile {profile}",
+  "browser.chromeSignIn.notFound":
+    "Chrome profile {profile} has no sign-in for {site}. Sign in to {site} in Chrome first.",
+  "browser.chromeSignIn.failed": "OpenBot could not read the sign-in from Chrome.",
   "browser.profiles.title": "Browser profiles",
   "browser.profiles.subtitle":
     "Each profile keeps its own sign-ins, cookies and site data on the computer that runs OpenBot.",

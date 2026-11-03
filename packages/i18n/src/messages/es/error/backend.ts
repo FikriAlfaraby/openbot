@@ -51,6 +51,12 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "Este host remoto no puede recibir un inicio de sesión de este equipo.",
   "error.backend.browserSignInOpenFailed": "OpenBot no pudo abrir la ventana de inicio de sesión.",
   "error.backend.browserSignInReadFailed": "OpenBot no pudo leer el inicio de sesión de la ventana.",
+  "error.backend.chromeSignInMacOnly": "Iniciar sesión con Chrome solo funciona en un Mac.",
+  "error.backend.chromeDataBlocked":
+    "OpenBot no puede abrir los datos de Chrome. Permite OpenBot en Ajustes del Sistema › Privacidad y seguridad y vuelve a intentarlo.",
+  "error.backend.chromeKeyDenied":
+    "No se desbloqueó la clave de inicio de sesión de Chrome. Vuelve a intentarlo y elige Permitir.",
+  "error.backend.chromeProfileMissing": "Ese perfil de Chrome ya no está en este Mac.",
   "error.backend.browserStopUnsupported": "Este host remoto no puede detener la carga de una página.",
   "error.backend.sharedDataLocalOnly": "Los datos compartidos se gestionan en el equipo que ejecuta estos agentes.",
   "error.backend.browserUrlProtocol": "Solo se permiten URL HTTP(S) en el navegador.",

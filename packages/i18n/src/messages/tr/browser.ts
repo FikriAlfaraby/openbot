@@ -143,6 +143,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} hâlâ {site} için bir oturum açma sayfası gösteriyor. Oturum açmayı pencerede tamamlayın.",
   "browser.signIn.failed": "OpenBot oturumu gönderemedi.",
+  "browser.chromeSignIn.menu": "Chrome ile oturum aç",
+  "browser.chromeSignIn.loading": "Chrome profilleri okunuyor…",
+  "browser.chromeSignIn.empty": "Bu Mac’te Chrome profili yok",
+  "browser.chromeSignIn.sent": "{site} sitesinde {profile} Chrome profiliyle oturum açıldı",
+  "browser.chromeSignIn.notFound":
+    "{profile} Chrome profilinde {site} için oturum yok. Önce Chrome’da {site} sitesinde oturum açın.",
+  "browser.chromeSignIn.failed": "OpenBot oturumu Chrome’dan okuyamadı.",
   "browser.profiles.title": "Tarayıcı profilleri",
   "browser.profiles.subtitle":
     "Her profil kendi oturum açma bilgilerini, çerezlerini ve site verilerini OpenBot'u çalıştıran bilgisayarda tutar.",

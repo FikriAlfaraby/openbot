@@ -9,6 +9,8 @@ import type {
 import { describe, expect, it } from "vitest";
 import {
   decodeBrowserBounds,
+  decodeBrowserChromeProfiles,
+  decodeBrowserChromeSignInResult,
   decodeBrowserControlState,
   decodeBrowserDisplayState,
   decodeBrowserLiveViewEvent,
@@ -136,6 +138,9 @@ describe("browser decoders", () => {
     ["live view event of an unknown type", decodeBrowserLiveViewEvent, { type: "paused", tabId: "tab-1" }],
     ["picture-in-picture move without bounds", decodeBrowserPictureInPictureEvent, { type: "bounds-changed" }],
     ["picture-in-picture event of an unknown type", decodeBrowserPictureInPictureEvent, { type: "grow" }],
+    ["Chrome profile list that is not a list", decodeBrowserChromeProfiles, { id: "Default", name: "Work" }],
+    ["Chrome profile without a name", decodeBrowserChromeProfiles, [{ id: "Default" }]],
+    ["Chrome sign-in result without a count", decodeBrowserChromeSignInResult, { cookies: "3" }],
   ] as const)("rejects a %s", (_name, decode: (value: unknown) => unknown, value) => {
     expect(() => decode(value)).toThrow(/^Invalid /);
   });
@@ -144,5 +149,13 @@ describe("browser decoders", () => {
   // still uses. Only the exact `true` that main sends crosses the bridge.
   it.each([false, "true", 1, null, {}])("drops a userControl value of %j", (userControl) => {
     expect(decodeBrowserTab({ ...tab, userControl })).toEqual(tab);
+  });
+
+  // Fork: main answers with profile names and a count, never with cookie values.
+  it("keeps only the id and name of a Chrome profile, and the count of a sign-in", () => {
+    expect(decodeBrowserChromeProfiles([{ id: "Profile 1", name: "fikri 04", path: "/Users/x" }])).toEqual([
+      { id: "Profile 1", name: "fikri 04" },
+    ]);
+    expect(decodeBrowserChromeSignInResult({ cookies: 4, values: ["secret"] })).toEqual({ cookies: 4 });
   });
 });

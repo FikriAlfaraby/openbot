@@ -5,6 +5,8 @@
 
 import type {
   BrowserBounds,
+  BrowserChromeProfile,
+  BrowserChromeSignInResult,
   BrowserControlAction,
   BrowserControlDetailAction,
   BrowserControlSession,
@@ -101,6 +103,17 @@ export function decodeBrowserLocalSignInResult(value: unknown): BrowserLocalSign
   if (value === null) return null;
   const result = decodeRecord(value, "browser sign-in result");
   return { cookies: requiredNumber(result, "cookies"), signedIn: requiredBoolean(result, "signedIn") };
+}
+
+export function decodeBrowserChromeProfiles(value: unknown): BrowserChromeProfile[] {
+  return decodeList(value, "Chrome profile list", (profile) => ({
+    id: requiredString(profile, "id"),
+    name: requiredString(profile, "name"),
+  }));
+}
+
+export function decodeBrowserChromeSignInResult(value: unknown): BrowserChromeSignInResult {
+  return { cookies: requiredNumber(decodeRecord(value, "Chrome sign-in result"), "cookies") };
 }
 
 export function decodeBrowserLiveViewEvent(value: unknown): BrowserLiveViewEvent {

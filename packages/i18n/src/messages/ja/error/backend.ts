@@ -50,6 +50,12 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "このリモートホストはこのコンピューターからのサインインを受け取れません。",
   "error.backend.browserSignInOpenFailed": "OpenBot はサインインウィンドウを開けませんでした。",
   "error.backend.browserSignInReadFailed": "OpenBot はウィンドウからサインインを読み取れませんでした。",
+  "error.backend.chromeSignInMacOnly": "Chrome でのサインインは Mac でのみ使えます。",
+  "error.backend.chromeDataBlocked":
+    "OpenBot は Chrome のデータを開けません。システム設定 › プライバシーとセキュリティで OpenBot を許可してから、もう一度お試しください。",
+  "error.backend.chromeKeyDenied":
+    "Chrome のサインインキーのロックが解除されませんでした。もう一度試して「許可」を選んでください。",
+  "error.backend.chromeProfileMissing": "その Chrome のプロフィールはこの Mac にもうありません。",
   "error.backend.browserStopUnsupported": "このリモートホストはページの読み込みを停止できません。",
   "error.backend.sharedDataLocalOnly": "共有データは、これらのエージェントを実行しているコンピューターで管理されます。",
   "error.backend.browserUrlProtocol": "HTTP(S) のブラウザー URL のみ使用できます。",

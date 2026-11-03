@@ -190,6 +190,8 @@ import {
 import { decodeBackgroundProcesses } from "./background-process-decoding";
 import {
   decodeBrowserBounds,
+  decodeBrowserChromeProfiles,
+  decodeBrowserChromeSignInResult,
   decodeBrowserControlState,
   decodeBrowserDisplayState,
   decodeBrowserLiveViewEvent,
@@ -1249,6 +1251,8 @@ const openbotApi: OpenBotDesktopApi = {
       pictureInPictureEvent: decodeBrowserPictureInPictureEvent,
       openLocalSignIn: decodeBrowserLocalSignInEnd,
       finishLocalSignIn: decodeBrowserLocalSignInResult,
+      chromeProfiles: decodeBrowserChromeProfiles,
+      importChromeSignIn: decodeBrowserChromeSignInResult,
     }),
     // Untyped: the renderer and wire input shapes differ on purpose. See `IPC_ENDPOINTS.browserInput`.
     sendLiveViewInput: (input) =>

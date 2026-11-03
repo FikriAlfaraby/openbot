@@ -1,4 +1,9 @@
-import type { BrowserControlSession, BrowserTab, BrowserTabProfile } from "@openbot/contracts/ipc";
+import type {
+  BrowserChromeProfile,
+  BrowserControlSession,
+  BrowserTab,
+  BrowserTabProfile,
+} from "@openbot/contracts/ipc";
 import type { AppTranslate } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import type { JSX } from "@solidjs/web";
@@ -51,6 +56,16 @@ export interface BrowserFullViewProps {
    * the host cannot take one, or where this app cannot open a window.
    */
   onSignInLocally?: ((tabId: string) => void) | undefined;
+  /**
+   * Fork: gives the tab the sign-in of its site from a Chrome profile on this Mac. Absent where this app
+   * cannot read Chrome, or where the host cannot take a sign-in.
+   */
+  chromeSignIn?:
+    | {
+        loadProfiles: () => Promise<BrowserChromeProfile[]>;
+        onImport: (tabId: string, profile: BrowserChromeProfile) => void;
+      }
+    | undefined;
   /**
    * Whether the window draws the macOS traffic lights over this view. The view is portaled to
    * `document.body`, so it cannot read the platform class of `.app-frame`.

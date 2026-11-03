@@ -47,6 +47,7 @@ export default function BrowserFullViewAdapter() {
     showBrowserPip,
     showBrowserTabOf,
     localSignIn,
+    chromeSignIn,
   } = useConversationViewScope();
   const serverId = () => props.server?.id ?? "";
   const tabs = createMemo(() => orderedBrowserTabs(serverId(), allBrowserTabs()));
@@ -160,6 +161,11 @@ export default function BrowserFullViewAdapter() {
       onBack={() => setActiveRightPanel("browser")}
       onEnterPip={props.runtime ? () => undefined : showBrowserPip}
       onSignInLocally={localSignIn.canStart(activeBrowserTab()) ? localSignIn.start : undefined}
+      chromeSignIn={
+        props.platform === "darwin" && chromeSignIn.canStart(activeBrowserTab())
+          ? { loadProfiles: chromeSignIn.loadProfiles, onImport: chromeSignIn.start }
+          : undefined
+      }
       // A local tab is a native view above this window, so its dock goes in the overlay above the page.
       dock={<BrowserDockAdapter tab={activeBrowserTab()} overlay={!props.runtime && props.server?.kind === "local"} />}
       dialogs={

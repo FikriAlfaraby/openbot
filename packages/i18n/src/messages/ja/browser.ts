@@ -141,6 +141,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} にはまだ {site} のサインインページが表示されています。ウィンドウでサインインを完了してください。",
   "browser.signIn.failed": "OpenBot はサインインを送信できませんでした。",
+  "browser.chromeSignIn.menu": "Chrome でサインイン",
+  "browser.chromeSignIn.loading": "Chrome のプロフィールを読み込み中…",
+  "browser.chromeSignIn.empty": "この Mac に Chrome のプロフィールがありません",
+  "browser.chromeSignIn.sent": "Chrome のプロフィール {profile} で {site} にサインインしました",
+  "browser.chromeSignIn.notFound":
+    "Chrome のプロフィール {profile} には {site} のサインインがありません。先に Chrome で {site} にサインインしてください。",
+  "browser.chromeSignIn.failed": "OpenBot は Chrome からサインインを読み込めませんでした。",
   "browser.profiles.title": "ブラウザープロファイル",
   "browser.profiles.subtitle":
     "各プロファイルは、専用のサインイン、Cookie、サイトデータを OpenBot を実行しているコンピューターに保持します。",

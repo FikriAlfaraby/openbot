@@ -51,6 +51,12 @@ export const messages = {
     "Dieser entfernte Host kann keine Anmeldung von diesem Computer übernehmen.",
   "error.backend.browserSignInOpenFailed": "OpenBot konnte das Anmeldefenster nicht öffnen.",
   "error.backend.browserSignInReadFailed": "OpenBot konnte die Anmeldung im Fenster nicht lesen.",
+  "error.backend.chromeSignInMacOnly": "Die Anmeldung mit Chrome funktioniert nur auf einem Mac.",
+  "error.backend.chromeDataBlocked":
+    "OpenBot kann die Daten von Chrome nicht öffnen. Erlaube OpenBot unter Systemeinstellungen › Datenschutz & Sicherheit und versuche es erneut.",
+  "error.backend.chromeKeyDenied":
+    "Der Anmeldeschlüssel von Chrome wurde nicht freigegeben. Versuche es erneut und wähle Erlauben.",
+  "error.backend.chromeProfileMissing": "Dieses Chrome-Profil ist nicht mehr auf diesem Mac.",
   "error.backend.browserStopUnsupported": "Dieser entfernte Host kann das Laden einer Seite nicht stoppen.",
   "error.backend.sharedDataLocalOnly":
     "Geteilte Daten werden auf dem Computer verwaltet, auf dem diese Agenten laufen.",

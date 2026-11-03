@@ -49,6 +49,11 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "Этот удалённый хост не может принять вход с этого компьютера.",
   "error.backend.browserSignInOpenFailed": "OpenBot не удалось открыть окно входа.",
   "error.backend.browserSignInReadFailed": "OpenBot не удалось прочитать вход из окна.",
+  "error.backend.chromeSignInMacOnly": "Вход через Chrome работает только на Mac.",
+  "error.backend.chromeDataBlocked":
+    "OpenBot не может открыть данные Chrome. Разрешите OpenBot в Системных настройках › Конфиденциальность и безопасность и попробуйте снова.",
+  "error.backend.chromeKeyDenied": "Ключ входа Chrome не был разблокирован. Попробуйте снова и выберите «Разрешить».",
+  "error.backend.chromeProfileMissing": "Этого профиля Chrome больше нет на этом Mac.",
   "error.backend.browserStopUnsupported": "Этот удалённый хост не может остановить загрузку страницы.",
   "error.backend.sharedDataLocalOnly": "Общими данными управляют на компьютере, где работают эти агенты.",
   "error.backend.browserUrlProtocol": "Допускаются только URL браузера с HTTP(S).",

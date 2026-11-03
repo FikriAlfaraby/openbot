@@ -188,6 +188,9 @@ import type {
 import type { BitwardenConnectorStatus, BitwardenHostConnectInput } from "./ipc-bitwarden-connector";
 import type {
   BrowserBounds,
+  BrowserChromeProfile,
+  BrowserChromeSignInInput,
+  BrowserChromeSignInResult,
   BrowserControlState,
   BrowserDisplayState,
   BrowserLiveViewEvent,
@@ -1639,6 +1642,9 @@ export const IPC_ENDPOINTS = {
     finishLocalSignIn: request<BrowserLocalSignInFinish, BrowserLocalSignInResult | null>()(
       "browser:local-sign-in-finish",
     ),
+    // Fork: the sign-in of the tab's site from a Chrome profile on this Mac.
+    chromeProfiles: request<undefined, BrowserChromeProfile[]>()("browser:chrome-profiles"),
+    importChromeSignIn: request<BrowserChromeSignInInput, BrowserChromeSignInResult>()("browser:chrome-sign-in-import"),
   },
   // Not part of `browser`, so that group can be bridged: this is the one untyped endpoint. The renderer
   // sends `BrowserLiveViewInput` and main reads the wire `BrowserViewInput`, which differ on purpose

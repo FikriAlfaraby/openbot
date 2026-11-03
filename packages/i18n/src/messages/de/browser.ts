@@ -146,6 +146,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} zeigt für {site} noch eine Anmeldeseite. Schließe die Anmeldung im Fenster ab.",
   "browser.signIn.failed": "OpenBot konnte die Anmeldung nicht senden.",
+  "browser.chromeSignIn.menu": "Mit Chrome anmelden",
+  "browser.chromeSignIn.loading": "Chrome-Profile werden gelesen…",
+  "browser.chromeSignIn.empty": "Kein Chrome-Profil auf diesem Mac",
+  "browser.chromeSignIn.sent": "Bei {site} mit dem Chrome-Profil {profile} angemeldet",
+  "browser.chromeSignIn.notFound":
+    "Das Chrome-Profil {profile} hat keine Anmeldung für {site}. Melde dich zuerst in Chrome bei {site} an.",
+  "browser.chromeSignIn.failed": "OpenBot konnte die Anmeldung aus Chrome nicht lesen.",
   "browser.profiles.title": "Browser-Profile",
   "browser.profiles.subtitle":
     "Jedes Profil behält eigene Anmeldungen, Cookies und Website-Daten auf dem Computer, auf dem OpenBot läuft.",

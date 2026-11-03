@@ -148,6 +148,13 @@ export const messages = {
   "browser.signIn.notFound": "OpenBot не нашёл вход в {site}. Войдите в окне, затем выберите «Готово».",
   "browser.signIn.stillSignedOut": "{server} всё ещё показывает страницу входа в {site}. Завершите вход в окне.",
   "browser.signIn.failed": "OpenBot не удалось отправить вход.",
+  "browser.chromeSignIn.menu": "Войти через Chrome",
+  "browser.chromeSignIn.loading": "Чтение профилей Chrome…",
+  "browser.chromeSignIn.empty": "На этом Mac нет профилей Chrome",
+  "browser.chromeSignIn.sent": "Вход на {site} выполнен через профиль Chrome {profile}",
+  "browser.chromeSignIn.notFound":
+    "В профиле Chrome {profile} нет входа на {site}. Сначала войдите на {site} в Chrome.",
+  "browser.chromeSignIn.failed": "OpenBot не удалось прочитать вход из Chrome.",
   "browser.profiles.title": "Профили браузера",
   "browser.profiles.subtitle":
     "Каждый профиль хранит свои входы в аккаунты, cookie и данные сайтов на компьютере, где работает OpenBot.",

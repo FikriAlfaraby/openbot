@@ -133,6 +133,13 @@ export const messages = {
   "browser.signIn.notFound": "OpenBot이 {site}의 로그인 정보를 찾지 못했어요. 창에서 로그인한 후 완료를 선택해 주세요.",
   "browser.signIn.stillSignedOut": "{server}에서 {site}의 로그인 페이지가 계속 표시돼요. 창에서 로그인을 마쳐 주세요.",
   "browser.signIn.failed": "OpenBot이 로그인 정보를 보내지 못했어요.",
+  "browser.chromeSignIn.menu": "Chrome으로 로그인",
+  "browser.chromeSignIn.loading": "Chrome 프로필을 읽는 중…",
+  "browser.chromeSignIn.empty": "이 Mac에 Chrome 프로필이 없어요",
+  "browser.chromeSignIn.sent": "Chrome 프로필 {profile}(으)로 {site}에 로그인했어요",
+  "browser.chromeSignIn.notFound":
+    "Chrome 프로필 {profile}에 {site} 로그인 정보가 없어요. 먼저 Chrome에서 {site}에 로그인하세요.",
+  "browser.chromeSignIn.failed": "OpenBot이 Chrome에서 로그인 정보를 읽지 못했어요.",
   "browser.profiles.title": "브라우저 프로필",
   "browser.profiles.subtitle":
     "각 프로필은 OpenBot을 실행하는 컴퓨터에 자신만의 로그인 정보, 쿠키, 사이트 데이터를 보관해요.",

@@ -151,6 +151,13 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} toont nog een inlogpagina voor {site}. Rond het inloggen af in het venster.",
   "browser.signIn.failed": "OpenBot kon de login niet versturen.",
+  "browser.chromeSignIn.menu": "Inloggen met Chrome",
+  "browser.chromeSignIn.loading": "Chrome-profielen lezen…",
+  "browser.chromeSignIn.empty": "Geen Chrome-profiel op deze Mac",
+  "browser.chromeSignIn.sent": "Ingelogd bij {site} met Chrome-profiel {profile}",
+  "browser.chromeSignIn.notFound":
+    "Chrome-profiel {profile} heeft geen login voor {site}. Log eerst in Chrome in bij {site}.",
+  "browser.chromeSignIn.failed": "OpenBot kon de login niet uit Chrome lezen.",
   "browser.profiles.title": "Browserprofielen",
   "browser.profiles.subtitle":
     "Elk profiel bewaart eigen logins, cookies en sitegegevens op de computer waarop OpenBot draait.",

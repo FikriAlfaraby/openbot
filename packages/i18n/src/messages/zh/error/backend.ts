@@ -47,6 +47,11 @@ export const messages = {
   "error.backend.browserSignInUnsupported": "该远程主机无法接收来自这台电脑的登录。",
   "error.backend.browserSignInOpenFailed": "OpenBot 无法打开登录窗口。",
   "error.backend.browserSignInReadFailed": "OpenBot 无法从窗口读取登录信息。",
+  "error.backend.chromeSignInMacOnly": "使用 Chrome 登录仅适用于 Mac。",
+  "error.backend.chromeDataBlocked":
+    "OpenBot 无法打开 Chrome 的数据。请在“系统设置 › 隐私与安全性”中允许 OpenBot，然后重试。",
+  "error.backend.chromeKeyDenied": "Chrome 的登录密钥未解锁。请重试并选择“允许”。",
+  "error.backend.chromeProfileMissing": "该 Chrome 个人资料已不在此 Mac 上。",
   "error.backend.browserStopUnsupported": "该远程主机无法停止页面加载。",
   "error.backend.sharedDataLocalOnly": "共享数据在运行这些助手的电脑上管理。",
   "error.backend.browserUrlProtocol": "只允许使用 HTTP(S) 浏览器地址。",
