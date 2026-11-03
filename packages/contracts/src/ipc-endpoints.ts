@@ -188,9 +188,12 @@ import type {
 import type { BitwardenConnectorStatus, BitwardenHostConnectInput } from "./ipc-bitwarden-connector";
 import type {
   BrowserBounds,
+  BrowserChromeLink,
+  BrowserChromeLinkInput,
   BrowserChromeProfile,
   BrowserChromeSignInInput,
   BrowserChromeSignInResult,
+  BrowserChromeSyncInput,
   BrowserControlState,
   BrowserDisplayState,
   BrowserLiveViewEvent,
@@ -1645,6 +1648,10 @@ export const IPC_ENDPOINTS = {
     // Fork: the sign-in of the tab's site from a Chrome profile on this Mac.
     chromeProfiles: request<undefined, BrowserChromeProfile[]>()("browser:chrome-profiles"),
     importChromeSignIn: request<BrowserChromeSignInInput, BrowserChromeSignInResult>()("browser:chrome-sign-in-import"),
+    // Fork: browser profiles of this Mac that follow a Chrome profile. The answer counts the cookies copied.
+    chromeLinks: request<undefined, BrowserChromeLink[]>()("browser:chrome-links"),
+    setChromeLink: request<BrowserChromeLinkInput, BrowserChromeSignInResult>()("browser:chrome-link-set"),
+    syncChromeProfile: request<BrowserChromeSyncInput, BrowserChromeSignInResult>()("browser:chrome-sync"),
   },
   // Not part of `browser`, so that group can be bridged: this is the one untyped endpoint. The renderer
   // sends `BrowserLiveViewInput` and main reads the wire `BrowserViewInput`, which differ on purpose

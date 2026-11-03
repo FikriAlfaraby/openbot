@@ -576,6 +576,7 @@ function registerIpcHandlers({
   browser,
   browserPictureInPicture,
   localSignIn,
+  chromeProfileSync,
   browserDock,
   browserView,
   updater,
@@ -859,7 +860,14 @@ function registerIpcHandlers({
       }),
       openExternal: openLink,
     }),
-    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView, localSignIn }),
+    ...browserIpcHandlers({
+      browserPictureInPicture,
+      browser,
+      remoteServers,
+      browserView,
+      localSignIn,
+      chromeProfileSync,
+    }),
   });
 }
 
@@ -1363,6 +1371,8 @@ if (!hasSingleInstanceLock) {
       // Before the renderer loads: the trust boundary and every protocol it fetches through have to
       // be in place before the first request can arrive.
       registerIpcHandlers(built);
+      // Fork: browser profiles that follow a Chrome profile take its newest sign-ins at each start.
+      void built.chromeProfileSync.syncAll();
       // A Signal socket of the host can be dead after sleep without knowing it; devices then cannot connect.
       const renewHostSignal = () =>
         void runCauseEffect(built.teamWebRtcBridge.renewHostSignal()).catch((error) =>

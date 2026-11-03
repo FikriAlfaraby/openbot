@@ -5,6 +5,7 @@
 
 import type {
   BrowserBounds,
+  BrowserChromeLink,
   BrowserChromeProfile,
   BrowserChromeSignInResult,
   BrowserControlAction,
@@ -109,6 +110,13 @@ export function decodeBrowserChromeProfiles(value: unknown): BrowserChromeProfil
   return decodeList(value, "Chrome profile list", (profile) => ({
     id: requiredString(profile, "id"),
     name: requiredString(profile, "name"),
+  }));
+}
+
+export function decodeBrowserChromeLinks(value: unknown): BrowserChromeLink[] {
+  return decodeList(value, "Chrome link list", (link) => ({
+    profileId: nullableString(link, "profileId"),
+    chromeProfileId: requiredString(link, "chromeProfileId"),
   }));
 }
 

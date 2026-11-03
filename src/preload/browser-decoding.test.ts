@@ -9,6 +9,7 @@ import type {
 import { describe, expect, it } from "vitest";
 import {
   decodeBrowserBounds,
+  decodeBrowserChromeLinks,
   decodeBrowserChromeProfiles,
   decodeBrowserChromeSignInResult,
   decodeBrowserControlState,
@@ -141,6 +142,7 @@ describe("browser decoders", () => {
     ["Chrome profile list that is not a list", decodeBrowserChromeProfiles, { id: "Default", name: "Work" }],
     ["Chrome profile without a name", decodeBrowserChromeProfiles, [{ id: "Default" }]],
     ["Chrome sign-in result without a count", decodeBrowserChromeSignInResult, { cookies: "3" }],
+    ["Chrome link without a Chrome profile", decodeBrowserChromeLinks, [{ profileId: null }]],
   ] as const)("rejects a %s", (_name, decode: (value: unknown) => unknown, value) => {
     expect(() => decode(value)).toThrow(/^Invalid /);
   });
@@ -157,5 +159,12 @@ describe("browser decoders", () => {
       { id: "Profile 1", name: "fikri 04" },
     ]);
     expect(decodeBrowserChromeSignInResult({ cookies: 4, values: ["secret"] })).toEqual({ cookies: 4 });
+  });
+
+  // Fork: a null profile id is the shared profile; nothing else crosses.
+  it("keeps the shared profile's null id in a Chrome link", () => {
+    expect(decodeBrowserChromeLinks([{ profileId: null, chromeProfileId: "Profile 1", path: "/Users/x" }])).toEqual([
+      { profileId: null, chromeProfileId: "Profile 1" },
+    ]);
   });
 });

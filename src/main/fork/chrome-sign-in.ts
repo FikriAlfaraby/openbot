@@ -250,30 +250,43 @@ async function readChromeRows(cookiesPath: string): Promise<{ rows: ChromeCookie
 }
 
 /**
- * The cookies of `host`'s site in a Chrome profile: the host, its parent domains, and its
- * subdomains, as the host side keeps them. Ended cookies are left out.
+ * The cookies of a Chrome profile that `keep` accepts, decrypted. Ended cookies and cookies the wire
+ * refuses are left out. The keychain is asked only when a cookie is kept.
  */
-export async function readChromeSignIn(
+async function readChromeCookies(
   profileId: string,
-  host: string,
-  home = homedir(),
+  keep: (domain: string) => boolean,
+  home: string,
 ): Promise<BrowserSignInCookie[]> {
   requireMac();
   if (!PROFILE_ID.test(profileId)) throw new Error(sourceText("error.backend.chromeProfileMissing"));
   const { rows, version } = await readChromeRows(
     await chromeCookiesPath(join(chromeUserDataDirectory(home), profileId)),
   );
-  const siteRows = rows.filter((row) => browserSignInCookieFitsHost(row.host_key, host));
-  if (siteRows.length === 0) return [];
+  const kept = rows.filter((row) => keep(row.host_key));
+  if (kept.length === 0) return [];
   const key = chromeCookieKey(await chromeKeychainPassword());
   const nowSeconds = Math.floor(Date.now() / 1000);
   const cookies: BrowserSignInCookie[] = [];
-  for (const row of siteRows) {
+  for (const row of kept) {
     const value = row.value || decryptChromeCookie(row.encrypted_value, key, row.host_key, version);
     if (value === null) continue;
     const cookie = chromeRowToCookie(row, value, nowSeconds);
     if (cookie) cookies.push(cookie);
   }
+  return cookies;
+}
+
+/**
+ * The cookies of `host`'s site in a Chrome profile: the host, its parent domains, and its
+ * subdomains, as the host side keeps them.
+ */
+export async function readChromeSignIn(
+  profileId: string,
+  host: string,
+  home = homedir(),
+): Promise<BrowserSignInCookie[]> {
+  const cookies = await readChromeCookies(profileId, (domain) => browserSignInCookieFitsHost(domain, host), home);
   // The host's own cookies first, then the longest paths: the ones a sign-in needs most.
   return cookies
     .sort(
@@ -282,4 +295,9 @@ export async function readChromeSignIn(
         right.path.length - left.path.length,
     )
     .slice(0, CHROME_SIGN_IN_COOKIE_LIMIT);
+}
+
+/** Every cookie of a Chrome profile, for a browser profile of this Mac that follows it. */
+export function readAllChromeCookies(profileId: string, home = homedir()): Promise<BrowserSignInCookie[]> {
+  return readChromeCookies(profileId, () => true, home);
 }

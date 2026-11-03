@@ -1,4 +1,4 @@
-import type { AgentSummary } from "@openbot/contracts/ipc";
+import type { AgentSummary, BrowserChromeLink, BrowserChromeProfile, OpenBotDesktopApi } from "@openbot/contracts/ipc";
 import { BrowserProfilesPanel } from "@openbot/ui/features/browser/BrowserProfilesPanel";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createSignal } from "solid-js";
@@ -10,6 +10,8 @@ export interface ServerBrowserProfilesOptions {
   store: Omit<BrowserProfilesStore, "assign">;
   /** The agents of the same server, for the names in the delete question. */
   listAgents: () => Promise<readonly Pick<AgentSummary, "id" | "name">[]>;
+  /** Fork: the Chrome links of this Mac's profiles. Only for the local server of a Mac. */
+  chrome?: Pick<OpenBotDesktopApi["browser"], "chromeProfiles" | "chromeLinks" | "setChromeLink" | "syncChromeProfile">;
 }
 
 /**
@@ -23,6 +25,32 @@ export function ServerBrowserProfilesPanel(
 ) {
   const { t, errorMessage } = useText();
   const [agentNames, setAgentNames] = createSignal<ReadonlyMap<string, string>>(new Map());
+  const [chromeProfiles, setChromeProfiles] = createSignal<readonly BrowserChromeProfile[] | undefined>();
+  const [chromeLinks, setChromeLinks] = createSignal<readonly BrowserChromeLink[]>([]);
+  // Fork: Chrome profiles come from this Mac. Without them, or without access, the panel shows no Chrome items.
+  createEffect(
+    () => props.chrome,
+    (chrome) => {
+      setChromeProfiles(undefined);
+      if (!chrome) return;
+      chrome.chromeProfiles().then(setChromeProfiles, () => setChromeProfiles(undefined));
+      chrome.chromeLinks().then(setChromeLinks, () => setChromeLinks([]));
+    },
+  );
+  const chrome = () => {
+    const api = props.chrome;
+    const profiles = chromeProfiles();
+    if (!api || !profiles || profiles.length === 0) return undefined;
+    return {
+      profiles,
+      linkOf: (profileId: string | null) => chromeLinks().find((link) => link.profileId === profileId)?.chromeProfileId,
+      onLink: async (profileId: string | null, chromeProfileId: string | null) => {
+        await api.setChromeLink({ profileId, chromeProfileId });
+        setChromeLinks(await api.chromeLinks());
+      },
+      onSync: async (profileId: string | null) => (await api.syncChromeProfile({ profileId })).cookies,
+    };
+  };
   let request = 0;
   createEffect(
     () => props.store,
@@ -55,6 +83,7 @@ export function ServerBrowserProfilesPanel(
       onClear={props.store.clear}
       onDelete={props.store.remove}
       menuMount={props.menuMount}
+      chrome={chrome()}
     />
   );
 }

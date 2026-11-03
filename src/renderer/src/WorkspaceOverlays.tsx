@@ -833,7 +833,15 @@ function ServerSettings() {
           }
           browserProfiles={
             serverCanAdminister(server(), BROWSER_PROFILES_CAPABILITY)
-              ? { store: browserProfiles(), listAgents: () => appPort().agent.listAgents(server().id) }
+              ? {
+                  store: browserProfiles(),
+                  listAgents: () => appPort().agent.listAgents(server().id),
+                  // Fork: only this Mac's own profiles can follow its Chrome.
+                  chrome:
+                    server().kind === "local" && platform.appInfo()?.platform === "darwin"
+                      ? appPort().browser
+                      : undefined,
+                }
               : undefined
           }
           vault={vault()}

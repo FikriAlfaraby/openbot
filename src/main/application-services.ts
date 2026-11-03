@@ -28,6 +28,7 @@ import { agentDisplayEnvironment, hasSeparateAgentDisplay } from "./agent-displa
 import { type AgentFolders, createAgentFolders } from "./agent-folders";
 import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-host-settings";
 import { type BrowserProfileService, createBrowserProfileService } from "./browser-profile-service";
+import { ChromeProfileSync } from "./fork/chrome-profile-sync";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
 import {
   CONTAINER_UPDATE_PATHS,
@@ -557,6 +558,8 @@ export interface ApplicationServices {
   browser: BrowserHost;
   browserPictureInPicture: BrowserPictureInPicture;
   localSignIn: LocalSignInWindows;
+  /** Fork: browser profiles of this Mac that follow a Chrome profile. */
+  chromeProfileSync: ChromeProfileSync;
   browserDock: BrowserDockOverlay;
   browserView: BrowserViewClient;
   updater: UpdateService;
@@ -1161,6 +1164,7 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.browserPictureInPicture, "picture in picture", () => browserPictureInPicture.destroy());
   const localSignIn = new LocalSignInWindows();
   teardown.push(TEARDOWN_ORDER.localSignIn, "the local sign-in window", () => Effect.runPromise(localSignIn.discard()));
+  const chromeProfileSync = new ChromeProfileSync(join(app.getPath("userData"), "fork", "chrome-links.json"));
   // A value, as for Picture in Picture: the overlay is a view in the window that the browser shows its pages in.
   const browserDock = new BrowserDockOverlay({
     mainWindow,
@@ -3311,6 +3315,7 @@ export async function createApplicationServices({
     browser,
     browserPictureInPicture,
     localSignIn,
+    chromeProfileSync,
     browserDock,
     browserView,
     updater,

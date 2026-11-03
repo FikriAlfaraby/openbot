@@ -1,7 +1,9 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   BrowserBounds,
+  BrowserChromeLinkInput,
   BrowserChromeSignInInput,
+  BrowserChromeSyncInput,
   BrowserLocalSignInFinish,
   BrowserLocalSignInInput,
   BrowserNavigateInput,
@@ -97,6 +99,27 @@ export function parseChromeSignIn(value: unknown): BrowserChromeSignInInput {
   const profileId = requireString(value.profileId, "profileId", 64);
   if (!/^(?:Default|Profile \d+)$/u.test(profileId)) throw new Error("Invalid Chrome sign-in request.");
   return { tabId: requireString(value.tabId, "tabId"), profileId };
+}
+
+const CHROME_PROFILE_ID = /^(?:Default|Profile \d+)$/u;
+
+function browserProfileIdOrShared(value: unknown): string | null {
+  return value === null ? null : requireString(value, "profileId", INPUT_LIMITS.identifier);
+}
+
+/** Fork: a browser profile id, null for the shared one, and a Chrome profile folder name or null. */
+export function parseChromeLink(value: unknown): BrowserChromeLinkInput {
+  if (!isObject(value)) throw new Error("Invalid Chrome link request.");
+  const chromeProfileId =
+    value.chromeProfileId === null ? null : requireString(value.chromeProfileId, "chromeProfileId", 64);
+  if (chromeProfileId !== null && !CHROME_PROFILE_ID.test(chromeProfileId))
+    throw new Error("Invalid Chrome link request.");
+  return { profileId: browserProfileIdOrShared(value.profileId), chromeProfileId };
+}
+
+export function parseChromeSync(value: unknown): BrowserChromeSyncInput {
+  if (!isObject(value)) throw new Error("Invalid Chrome sync request.");
+  return { profileId: browserProfileIdOrShared(value.profileId) };
 }
 
 export function parseLocalSignInFinish(value: unknown): BrowserLocalSignInFinish {

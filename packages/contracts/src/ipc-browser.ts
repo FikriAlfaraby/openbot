@@ -255,6 +255,23 @@ export interface BrowserChromeSignInResult {
   cookies: number;
 }
 
+/** Fork: a browser profile of this Mac that follows a Chrome profile. `profileId` null is the shared profile. */
+export interface BrowserChromeLink {
+  profileId: string | null;
+  chromeProfileId: string;
+}
+
+/** Fork: links a browser profile to a Chrome profile, or unlinks it with `chromeProfileId` null. */
+export interface BrowserChromeLinkInput {
+  profileId: string | null;
+  chromeProfileId: string | null;
+}
+
+/** Fork: copies the cookies of the Chrome profile that a browser profile follows. */
+export interface BrowserChromeSyncInput {
+  profileId: string | null;
+}
+
 export type BrowserNavigationDirection = "back" | "forward";
 
 export type BrowserNavigateInput =

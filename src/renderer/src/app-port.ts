@@ -38,6 +38,8 @@ export interface AppPort {
   plugins: Pick<OpenBotDesktopApi["plugins"], "onOpenListing" | "takePendingListing">;
   marketplace: Pick<OpenBotDesktopApi["marketplace"], "onOpenListing" | "takePendingListing">;
   servers: Pick<OpenBotDesktopApi["servers"], "onInvite" | "takePendingInvite">;
+  /** Fork: browser profiles of this Mac that follow a Chrome profile. */
+  browser: Pick<OpenBotDesktopApi["browser"], "chromeProfiles" | "chromeLinks" | "setChromeLink" | "syncChromeProfile">;
 }
 
 /** Read on each call: tests and stories replace `window.openbot` per case. */

@@ -1,7 +1,13 @@
-import { type AvatarHue, BROWSER_PROFILE_NAME_MAX, type BrowserProfileSummary } from "@openbot/contracts/ipc";
+import {
+  type AvatarHue,
+  BROWSER_PROFILE_NAME_MAX,
+  type BrowserChromeProfile,
+  type BrowserProfileSummary,
+} from "@openbot/contracts/ipc";
 import {
   Button,
   buttonVariants,
+  ChevronRight,
   ConfirmDialog,
   DropdownMenu,
   Ellipsis,
@@ -17,12 +23,15 @@ import {
   LogOut,
   Pencil,
   Plus,
+  RefreshCw,
   Text,
   Trash2,
+  toast,
 } from "@openbot/ui";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createStore, For, Show } from "solid-js";
 import { useText } from "../../text";
+import { MenuCheck } from "../marketplace/MarketplaceParts";
 import { BrowserProfileColorMenu, BrowserProfileDot } from "./BrowserProfileColor";
 
 export interface BrowserProfilesPanelProps {
@@ -41,6 +50,18 @@ export interface BrowserProfilesPanelProps {
   onDelete: (profileId: string) => Promise<void>;
   /** Where the row menus open, so they stay inside the settings page. */
   menuMount?: HTMLElement | undefined;
+  /** Fork: a profile of this Mac can follow a Chrome profile. Absent where Chrome cannot be read. */
+  chrome?: BrowserProfilesChrome | undefined;
+}
+
+/** Fork: the Chrome profiles a browser profile can follow. A null profile id is the shared profile. */
+export interface BrowserProfilesChrome {
+  profiles: readonly BrowserChromeProfile[];
+  /** The id of the Chrome profile that a browser profile follows, or undefined. */
+  linkOf: (profileId: string | null) => string | undefined;
+  onLink: (profileId: string | null, chromeProfileId: string | null) => Promise<void>;
+  /** Copies the cookies again. The answer is the count copied. */
+  onSync: (profileId: string | null) => Promise<number>;
 }
 
 interface BrowserProfilesDraft {
@@ -128,6 +149,26 @@ export function BrowserProfilesPanel(props: BrowserProfilesPanelProps) {
       tabs: t("browser.profiles.tabs", { count: profile.tabCount }),
     });
 
+  const chromeName = (profileId: string | null) => {
+    const id = props.chrome?.linkOf(profileId);
+    return id ? (props.chrome?.profiles.find((profile) => profile.id === id)?.name ?? id) : undefined;
+  };
+
+  const chromeMenu = (profileId: string | null) => {
+    const chrome = props.chrome;
+    if (!chrome) return undefined;
+    return {
+      profiles: chrome.profiles,
+      linked: chrome.linkOf(profileId),
+      onLink: (chromeProfileId: string | null) => void run(() => chrome.onLink(profileId, chromeProfileId)),
+      onSync: () =>
+        void run(async () => {
+          const count = await chrome.onSync(profileId);
+          toast.success(t("browser.profiles.chromeSynced", { count }));
+        }),
+    };
+  };
+
   const deletedAgents = () => {
     const confirming = draft.confirming;
     if (confirming?.kind !== "delete") return [];
@@ -150,7 +191,22 @@ export function BrowserProfilesPanel(props: BrowserProfilesPanelProps) {
                 <Show when={props.sharedAgentCount}>
                   {(count) => <ItemDescription>{t("browser.profiles.agents", { count: count() })}</ItemDescription>}
                 </Show>
+                <Show when={chromeName(null)}>
+                  {(name) => <ItemDescription>{t("browser.profiles.chromeFollows", { name: name() })}</ItemDescription>}
+                </Show>
               </ItemContent>
+              <Show when={chromeMenu(null)}>
+                {(chrome) => (
+                  <ItemActions>
+                    <BrowserProfileRowMenu
+                      name={t("agentSettings.browserProfile.shared")}
+                      disabled={draft.busy}
+                      mount={props.menuMount}
+                      chrome={chrome()}
+                    />
+                  </ItemActions>
+                )}
+              </Show>
             </Item>
             <For each={profiles()}>
               {(profile) => (
@@ -171,6 +227,11 @@ export function BrowserProfilesPanel(props: BrowserProfilesPanelProps) {
                         <ItemContent>
                           <ItemTitle>{profile.name}</ItemTitle>
                           <ItemDescription>{usage(profile)}</ItemDescription>
+                          <Show when={chromeName(profile.id)}>
+                            {(name) => (
+                              <ItemDescription>{t("browser.profiles.chromeFollows", { name: name() })}</ItemDescription>
+                            )}
+                          </Show>
                         </ItemContent>
                         <ItemActions>
                           <BrowserProfileRowMenu
@@ -192,6 +253,7 @@ export function BrowserProfilesPanel(props: BrowserProfilesPanelProps) {
                                 state.confirming = { kind: "delete", profile };
                               })
                             }
+                            chrome={chromeMenu(profile.id)}
                           />
                         </ItemActions>
                       </>
@@ -312,13 +374,22 @@ export function BrowserProfilesPanel(props: BrowserProfilesPanelProps) {
   );
 }
 
+interface BrowserProfileChromeMenu {
+  profiles: readonly BrowserChromeProfile[];
+  linked: string | undefined;
+  onLink: (chromeProfileId: string | null) => void;
+  onSync: () => void;
+}
+
+/** The menu of a profile row. The shared profile has only the Chrome items: it cannot be renamed or deleted. */
 function BrowserProfileRowMenu(props: {
   name: string;
   disabled: boolean;
   mount: HTMLElement | undefined;
-  onRename: () => void;
-  onClear: () => void;
-  onDelete: () => void;
+  onRename?: () => void;
+  onClear?: () => void;
+  onDelete?: () => void;
+  chrome?: BrowserProfileChromeMenu | undefined;
 }) {
   const { t } = useText();
   // Rename puts a field in place of the row. The menu gives the focus back to its trigger two frames
@@ -345,19 +416,71 @@ function BrowserProfileRowMenu(props: {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal mount={props.mount ?? document.body}>
         <DropdownMenu.Content>
-          <DropdownMenu.Item onSelect={() => (afterClose = props.onRename)}>
-            <Pencil aria-hidden="true" />
-            {t("common.rename")}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item onSelect={() => props.onClear()}>
-            <LogOut aria-hidden="true" />
-            {t("browser.profiles.clear")}
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item class="ui-action-menu-danger" onSelect={() => props.onDelete()}>
-            <Trash2 aria-hidden="true" />
-            {t("common.delete")}
-          </DropdownMenu.Item>
+          <Show when={props.onRename}>
+            {(onRename) => (
+              <DropdownMenu.Item onSelect={() => (afterClose = onRename())}>
+                <Pencil aria-hidden="true" />
+                {t("common.rename")}
+              </DropdownMenu.Item>
+            )}
+          </Show>
+          <Show when={props.onClear}>
+            {(onClear) => (
+              <DropdownMenu.Item onSelect={() => onClear()()}>
+                <LogOut aria-hidden="true" />
+                {t("browser.profiles.clear")}
+              </DropdownMenu.Item>
+            )}
+          </Show>
+          <Show when={props.chrome}>
+            {(chrome) => (
+              <>
+                <DropdownMenu.Sub>
+                  <DropdownMenu.SubTrigger>
+                    <span>{t("browser.profiles.chromeFollow")}</span>
+                    <ChevronRight class="agent-context-submenu-chevron size-4" aria-hidden="true" />
+                  </DropdownMenu.SubTrigger>
+                  <DropdownMenu.Portal mount={props.mount ?? document.body}>
+                    <DropdownMenu.SubContent class="ui-action-menu agent-context-menu agent-context-submenu">
+                      <DropdownMenu.RadioGroup
+                        aria-label={t("browser.profiles.chromeFollow")}
+                        value={chrome().linked ?? ""}
+                        onChange={(value: string) => chrome().onLink(value === "" ? null : value)}
+                      >
+                        <DropdownMenu.RadioItem value="" closeOnSelect>
+                          <MenuCheck on={!chrome().linked} />
+                          {t("browser.profiles.chromeNone")}
+                        </DropdownMenu.RadioItem>
+                        <For each={chrome().profiles}>
+                          {(profile) => (
+                            <DropdownMenu.RadioItem value={profile.id} closeOnSelect>
+                              <MenuCheck on={chrome().linked === profile.id} />
+                              {profile.name}
+                            </DropdownMenu.RadioItem>
+                          )}
+                        </For>
+                      </DropdownMenu.RadioGroup>
+                    </DropdownMenu.SubContent>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Sub>
+                <DropdownMenu.Item disabled={!chrome().linked} onSelect={() => chrome().onSync()}>
+                  <RefreshCw aria-hidden="true" />
+                  {t("browser.profiles.chromeSync")}
+                </DropdownMenu.Item>
+              </>
+            )}
+          </Show>
+          <Show when={props.onDelete}>
+            {(onDelete) => (
+              <>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item class="ui-action-menu-danger" onSelect={() => onDelete()()}>
+                  <Trash2 aria-hidden="true" />
+                  {t("common.delete")}
+                </DropdownMenu.Item>
+              </>
+            )}
+          </Show>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

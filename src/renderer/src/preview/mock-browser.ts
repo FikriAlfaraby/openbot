@@ -137,6 +137,9 @@ export function createMockBrowser(
     openLocalSignIn: async () => ({ signedIn: false }),
     chromeProfiles: async () => [],
     importChromeSignIn: async () => ({ cookies: 0 }),
+    chromeLinks: async () => [],
+    setChromeLink: async () => ({ cookies: 0 }),
+    syncChromeProfile: async () => ({ cookies: 0 }),
     finishLocalSignIn: async ({ send }) => (send ? { cookies: 12, signedIn: true } : null),
     dockPictureInPicture: async () => {
       emit(browserPictureInPictureListeners, { type: "dock" });

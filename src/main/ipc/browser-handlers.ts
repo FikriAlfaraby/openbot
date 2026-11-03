@@ -31,6 +31,7 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { BrowserPictureInPicture } from "../browser-picture-in-picture";
 import { isBrowserSignedInPage } from "../browser-sign-in-page";
 import type { BrowserViewClient } from "../browser-view-client";
+import type { ChromeProfileSync } from "../fork/chrome-profile-sync";
 import { listChromeProfiles, readChromeSignIn } from "../fork/chrome-sign-in";
 import type { LocalSignInWindows } from "../local-sign-in-window";
 import {
@@ -46,7 +47,9 @@ import {
   parseBrowserBounds,
   parseBrowserNavigate,
   parseBrowserOpen,
+  parseChromeLink,
   parseChromeSignIn,
+  parseChromeSync,
   parseLocalSignIn,
   parseLocalSignInFinish,
   parseVisibility,
@@ -82,6 +85,7 @@ export interface BrowserIpcDependencies {
   remoteServers: Pick<RemoteServerManager, "activeServerId" | "supportsCapability" | "request">;
   browserView: Pick<BrowserViewClient, "start" | "stop" | "sendInput">;
   localSignIn: LocalSignInWindows;
+  chromeProfileSync: Pick<ChromeProfileSync, "links" | "setLink" | "sync">;
 }
 
 const chromeSignInLogger = createOpenBotLogger("chrome-sign-in");
@@ -92,6 +96,7 @@ export function browserIpcHandlers({
   remoteServers,
   browserView,
   localSignIn,
+  chromeProfileSync,
 }: BrowserIpcDependencies): Pick<IpcGroupHandlers, "browser" | "browserInput"> {
   // A window that closes cannot stop its live view any more, so the view stops when the window goes.
   const liveViewOwners = new WeakSet<WebContents>();
@@ -339,6 +344,20 @@ export function browserIpcHandlers({
           },
         }).catch(reportFailure);
       }),
+      // Fork: browser profiles of this Mac that follow a Chrome profile. They read this Mac's Chrome, so
+      // they do not route to the active server.
+      chromeLinks: handler(async () =>
+        Object.entries(await chromeProfileSync.links()).map(([key, chromeProfileId]) => ({
+          profileId: key === "shared" ? null : key,
+          chromeProfileId,
+        })),
+      ),
+      setChromeLink: payloadHandler(parseChromeLink, async ({ profileId, chromeProfileId }) => ({
+        cookies: await chromeProfileSync.setLink(profileId, chromeProfileId),
+      })),
+      syncChromeProfile: payloadHandler(parseChromeSync, async ({ profileId }) => ({
+        cookies: await chromeProfileSync.sync(profileId),
+      })),
       takeControl: payloadHandler(stringPayload("tabId"), (tabId) =>
         routeToServer(remoteServers.activeServerId, {
           local: () => runCauseEffect(browser.takeUserControl(tabId, { kind: "local" })),
