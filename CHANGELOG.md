@@ -6,6 +6,22 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.58.4] - 2026-11-03
+
+### Changed
+
+- Stop agents from waiting on a site's check for people, such as Cloudflare's "Just a moment...". The
+  browser tells the agent at once, and the agent uses another source or asks you to take over the tab.
+  Before, a site such as AP News could hold the agent's browser for minutes.
+
+### Fixed
+
+- Open a remote server faster. A server switch read the conversation, the queue, routines, waits and tasks
+  again on each status update, several times in a few seconds, and the answers queued behind each other.
+  Now each is read again only when the agent, its status or the connection changes.
+- Show the conversation of a remote server first. The agents, their status and the open conversation now
+  go before the background reads, which run a few at a time, and two identical reads share one answer.
+
 ## [0.58.3] - 2026-11-03
 
 ### Added
