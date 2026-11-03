@@ -194,13 +194,18 @@ const Conversation = createSimpleContext({
       return [...messages, ...(uiErrors()[agentConversationKey(activeServerId(), agent.id)] ?? [])];
     });
 
+    // Fork: each of these is a new object on every write, several times in a server switch. The page is read
+    // again only when one of these values changes, not on each new status or server object.
+    const agentPhase = createMemo(() => agentStatus().phase);
+    const serverState = createMemo(() => activeServer()?.state);
+    const connectionSequence = createMemo(() => activeServer()?.connectionSequence);
     createEffect(
       () => ({
         agentId: activeAgentId(),
-        agentPhase: agentStatus().phase,
+        agentPhase: agentPhase(),
         openRevision: agentChatOpenRevision(),
-        serverState: activeServer()?.state,
-        sequence: activeServer()?.connectionSequence,
+        serverState: serverState(),
+        sequence: connectionSequence(),
       }),
       ({ agentId }) => {
         if (!agentId) return;

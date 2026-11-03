@@ -75,6 +75,9 @@ const Turns = createSimpleContext({
     const { dynamicIslandCoordinator } = useDynamicIsland();
     const { activeAgent, activeAgentId, agentList, agentListSettled, agentStatus, appendUiError } = useAgents();
     const scopeIsCurrent = createScopeGuard();
+    // Fork: the status is a new object on each write, several times in a server switch. Reading it whole
+    // in an effect sent the same requests again each time; the phase is the only part these loads follow.
+    const agentPhase = createMemo(() => agentStatus().phase);
 
     // The layer-2 seed: what this server was doing the last time it was open. The scope is keyed
     // on the server, so its id and the seed are read once.
@@ -158,7 +161,7 @@ const Turns = createSimpleContext({
     }
 
     createEffect(
-      () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
+      () => ({ agentId: activeAgentId(), agentPhase: agentPhase(), serverId: activeServerId() }),
       ({ agentId, serverId }) => {
         if (agentId) refreshRoutineIds(agentId, serverId);
       },
@@ -179,7 +182,7 @@ const Turns = createSimpleContext({
     }
 
     createEffect(
-      () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
+      () => ({ agentId: activeAgentId(), agentPhase: agentPhase(), serverId: activeServerId() }),
       ({ agentId }) => {
         if (agentId) loadQueue(agentId);
       },
@@ -201,7 +204,7 @@ const Turns = createSimpleContext({
     }
 
     createEffect(
-      () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
+      () => ({ agentId: activeAgentId(), agentPhase: agentPhase(), serverId: activeServerId() }),
       ({ agentId, serverId }) => {
         if (agentId) loadWaits(agentId, serverId);
       },

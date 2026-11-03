@@ -7,7 +7,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, createStore, untrack } from "solid-js";
+import { createEffect, createMemo, createStore, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { desktopAnalytics } from "../../analytics";
 import { createScopeGuard } from "../../scope-lifetime";
@@ -180,11 +180,15 @@ export function createAgentTasks(options: AgentTasksOptions) {
       });
   }
 
+  // Fork: the reload key and the availability are read through memos, so a new status or server object
+  // with the same values does not list the tasks again.
+  const reloadKey = createMemo(() => options.reloadKey());
+  const shownNow = createMemo(() => available());
   createEffect(
     () => ({
       agentId: activeAgentId(),
-      reload: options.reloadKey(),
-      shown: available(),
+      reload: reloadKey(),
+      shown: shownNow(),
       // A running thread can end while the server is away, and the sidebar shows its agent as working.
       running: untrack(() =>
         Object.values(state.snapshots).flatMap((snapshot) =>
