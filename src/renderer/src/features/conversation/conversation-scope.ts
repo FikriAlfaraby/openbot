@@ -1696,11 +1696,11 @@ export function createConversationViewScope(props: ConversationProps) {
     const runtime = conversationRuntime(props);
     try {
       // A relayed sign-in page must open on this computer, so it does not go to the built-in browser.
-      // A joined server's browser runs on its host, and the other members see its tabs.
+      // Fork: a joined server's links open in its browser too. Its browser runs on its host, so the
+      // other members of that server see the tab; the setting is the person's choice to share that.
       // When no tab opens, the link opens as it does with no setting.
       if (
         props.openLinksInBrowser &&
-        props.server?.kind !== "remote" &&
         props.browserEnabled !== false &&
         builtInBrowserPage(url) &&
         (await openBrowserAddress(url, true))
