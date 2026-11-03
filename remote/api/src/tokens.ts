@@ -153,7 +153,7 @@ export class RemoteTokenService {
   // The relay for a host and its clients (`TurnRelays.pick`).
   readonly #turnHost: (hostId: string) => string;
   readonly #turnPort: number;
-  readonly #turnTlsPort: number;
+  readonly #turnTlsPort: number | null;
   readonly #validateResumeClaims: (claims: RemoteTicketClaims) => Effect.Effect<boolean, RemoteTokenUnavailableError>;
   readonly #validateSlackRoute: (hostId: string, teams: SlackRouteTeam[]) => Effect.Effect<string[], RemoteTokenError>;
   readonly #validateTelegramRoute: (
@@ -508,7 +508,9 @@ export class RemoteTokenService {
         urls: [
           `turn:${host}:${this.#turnPort}?transport=udp`,
           `turn:${host}:${this.#turnPort}?transport=tcp`,
-          `turns:${host}:${this.#turnTlsPort}?transport=tcp`,
+          // A `turns:` server that cannot answer stalls a peer that waits for complete ICE gathering,
+          // such as the remote desktop viewer, so a relay without TLS offers none.
+          ...(this.#turnTlsPort === null ? [] : [`turns:${host}:${this.#turnTlsPort}?transport=tcp`]),
         ],
         username,
         credential,

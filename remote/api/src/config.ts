@@ -19,7 +19,8 @@ export interface RemoteApiConfig {
   // `TURN_EXTRA_HOSTS`. Each host gets one of them for itself and its clients (`turn-relays.ts`).
   turnHosts: string[];
   turnPort: number;
-  turnTlsPort: number;
+  /** Null when coturn has no TLS certificate (fork: `TURN_TLS_DISABLED`): no `turns:` server is offered. */
+  turnTlsPort: number | null;
   metricsToken: string | null;
   maximumConnectionsPerUser: number;
   maximumConnectionsPerIp: number;
@@ -185,7 +186,7 @@ export function readRemoteApiConfig(environment: Record<string, string | undefin
     turnSecret: strongSecret(environment.TURN_SHARED_SECRET, "TURN_SHARED_SECRET"),
     turnHosts: readTurnHosts(required(environment.TURN_HOST, "TURN_HOST"), environment.TURN_EXTRA_HOSTS),
     turnPort: positiveInteger(environment.TURN_PORT, 3478),
-    turnTlsPort: positiveInteger(environment.TURN_TLS_PORT, 5349),
+    turnTlsPort: environment.TURN_TLS_DISABLED === "true" ? null : positiveInteger(environment.TURN_TLS_PORT, 5349),
     metricsToken: optional(environment.REMOTE_METRICS_TOKEN),
     maximumConnectionsPerUser: positiveInteger(environment.REMOTE_MAX_CONNECTIONS_PER_USER, 32),
     maximumConnectionsPerIp: positiveInteger(environment.REMOTE_MAX_CONNECTIONS_PER_IP, 32),

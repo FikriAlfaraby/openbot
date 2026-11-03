@@ -33,7 +33,8 @@ services:
       TURN_HOST: ${TURN_DOMAIN:?TURN_DOMAIN is required}
       TURN_EXTRA_HOSTS: ""
       TURN_PORT: 3478
-      TURN_TLS_PORT: 5349
+      # coturn here has no certificate, so Signal offers no turns: server.
+      TURN_TLS_DISABLED: "true"
     ports:
       # Health and metrics on the host loopback address only.
       - "127.0.0.1:9652:8080/tcp"
