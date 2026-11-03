@@ -204,6 +204,8 @@ export function navItem(tab: SettingsTab): SettingsNavItem {
  */
 export function settingsTabShown(tab: SettingsTab, dynamicIslandShown: boolean): boolean {
   if (tab === "hosted-servers") return false;
+  // Fork: a community server sells nothing, so there is no billing or license to show.
+  if (tab === "billing") return false;
   return tab !== "dynamic-island" || dynamicIslandShown;
 }
 

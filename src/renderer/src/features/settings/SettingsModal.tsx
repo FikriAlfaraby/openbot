@@ -131,7 +131,9 @@ export interface SettingsModalProps {
 export function SettingsModal(props: SettingsModalProps) {
   const i18n = useI18n();
   const [activeTab, setActiveTab] = createSignal<SettingsTab>(
-    untrack(() => (props.initialTab === "hosted-servers" ? "billing" : props.initialTab)) ?? "general",
+    untrack(() =>
+      props.initialTab === "hosted-servers" || props.initialTab === "billing" ? "general" : props.initialTab,
+    ) ?? "general",
   );
   let modalElement: HTMLElement | undefined;
   const profile = createSettingsProfileStore(props, () => activeTab() === "profile");
@@ -175,7 +177,7 @@ export function SettingsModal(props: SettingsModalProps) {
   createEffect(
     () => {
       const tab = props.open ? props.openTab : undefined;
-      return tab === "hosted-servers" ? "billing" : tab;
+      return tab === "hosted-servers" || tab === "billing" ? "general" : tab;
     },
     (tab) => {
       if (!tab) return;
@@ -201,7 +203,6 @@ export function SettingsModal(props: SettingsModalProps) {
         (value === "dynamic-island" && dynamicIslandShown()) ||
         value === "computer-use" ||
         value === "profile" ||
-        value === "billing" ||
         value === "mobile-connect" ||
         value === "updates"
       ) {
