@@ -181,8 +181,7 @@ linux:
     # The sherpa-onnx addon and its libraries. The dictation and speech models are downloaded on demand.
     - from: .openbot-build/voice/runtime
       to: voice/runtime
-    # Only the x64 build installs this runtime. For arm64 the directory does not exist, and
-    # electron-builder skips a missing source with a warning.
+    # The x64 and arm64 builds each install the runtime of their architecture (fork: arm64 too).
     - from: build/remote-desktop-runtime
       to: remote-desktop-runtime
     - from: build/cua-driver/linux/${arch}

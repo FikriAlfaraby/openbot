@@ -22,7 +22,7 @@ export const resolveRemoteDesktopRuntime = Effect.fn("RemoteDesktop.resolveRunti
 ) {
   const platformDirectory = input.platform;
   const architecture = input.architecture;
-  // Releases ship x64 only on Windows and Linux. A Linux arm64 build is for local development.
+  // Releases ship x64 only on Windows. Linux ships x64 and arm64 (fork: arm64 servers too).
   const architectures = input.platform === "win32" ? ["x64"] : ["arm64", "x64"];
   if (!architectures.includes(architecture)) return null;
   const root = input.overrideRoot
