@@ -6,6 +6,17 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.59.3] - 2026-11-03
+
+### Fixed
+
+- Connect a Claude account whose email an API key account still shows from an older sign-in. Before,
+  it showed "This Claude account is already connected."
+- Keep OpenBot's own Claude sign-in in its own folder when a Claude Code session opened the app. Before,
+  agents ran in that session's profile and could be signed out.
+- Continue a Claude chat that another account folder saved. Before, each message failed with a
+  conversation that was not found, and the agent then started again with no context.
+
 ## [0.59.2] - 2026-11-03
 
 ### Fixed
