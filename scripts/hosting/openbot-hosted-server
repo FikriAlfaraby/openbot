@@ -57,6 +57,8 @@ if [ -r /opt/OpenBot/hosted/openbot.env ]; then
   while IFS='=' read -r key value || [ -n "$key" ]; do
     case $key in
       OPENBOT_AUTH_API_URL) export "$key=$value" ;;
+      # Fork: the Signal of a self-hosted account service, which the peer window must be allowed to open.
+      OPENBOT_REMOTE_SIGNAL_URL) export "$key=$value" ;;
       OPENBOT_DISPLAY_SIZE) requested_size=$value ;;
     esac
   done </opt/OpenBot/hosted/openbot.env
