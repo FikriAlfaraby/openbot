@@ -113,8 +113,10 @@ export function chromeRowToCookie(row: ChromeCookieRow, value: string, nowSecond
   const domain = row.host_key.toLowerCase();
   if (!domain || Buffer.byteLength(row.name) + Buffer.byteLength(value) > CHROME_COOKIE_BYTES) return null;
   let expirationDate: number | null = null;
-  if (Number(row.has_expires) !== 0 && Number(row.expires_utc) > 0) {
-    expirationDate = Math.floor(Number(row.expires_utc) / 1_000_000) - CHROME_EPOCH_OFFSET_SECONDS;
+  // Chrome counts microseconds since 1601, past the largest exact JavaScript number, so divide as BigInt.
+  const expires = BigInt(row.expires_utc);
+  if (Number(row.has_expires) !== 0 && expires > 0n) {
+    expirationDate = Number(expires / 1_000_000n) - CHROME_EPOCH_OFFSET_SECONDS;
     if (expirationDate <= nowSeconds) return null;
   }
   return {
@@ -227,17 +229,17 @@ async function readChromeRows(cookiesPath: string): Promise<{ rows: ChromeCookie
       const meta = database.prepare("SELECT value FROM meta WHERE key = 'version'").get();
       const version = Number(meta?.value ?? 0);
       // A partitioned cookie belongs to a site embedded in another one, which a tab of its own never is.
-      const rows = database
-        .prepare(
-          `SELECT host_key, name, value, encrypted_value, path, expires_utc, has_expires, is_secure,
-                  is_httponly, samesite
-           FROM cookies WHERE top_frame_site_key = '' OR top_frame_site_key IS NULL`,
-        )
-        .all()
-        .flatMap((row) => {
-          const decoded = chromeCookieRow(row);
-          return decoded ? [decoded] : [];
-        });
+      const statement = database.prepare(
+        `SELECT host_key, name, value, encrypted_value, path, expires_utc, has_expires, is_secure,
+                is_httponly, samesite
+         FROM cookies WHERE top_frame_site_key = '' OR top_frame_site_key IS NULL`,
+      );
+      // Chrome's expiry times do not fit a JavaScript number, and node:sqlite refuses to round them.
+      statement.setReadBigInts(true);
+      const rows = statement.all().flatMap((row) => {
+        const decoded = chromeCookieRow(row);
+        return decoded ? [decoded] : [];
+      });
       return { rows, version };
     } finally {
       database.close();
