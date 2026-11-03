@@ -217,8 +217,12 @@ async function readChromeRows(cookiesPath: string): Promise<{ rows: ChromeCookie
       if (isMissingFile(cause)) throw new Error(sourceText("error.backend.chromeProfileMissing"));
       throw chromeDataBlocked();
     }
-    await copyFile(`${cookiesPath}-journal`, `${copy}-journal`).catch(() => undefined);
-    const database = new DatabaseSync(copy, { readOnly: true });
+    // Chrome keeps the Cookies database in WAL mode, so its newest rows live in the -wal sidecar; a copy
+    // of the main file alone misses them. Copy the WAL and SHM too, and open read-write so SQLite folds
+    // the WAL into the copy. The copy is in OpenBot's own folder, so nothing of Chrome's is changed.
+    await copyFile(`${cookiesPath}-wal`, `${copy}-wal`).catch(() => undefined);
+    await copyFile(`${cookiesPath}-shm`, `${copy}-shm`).catch(() => undefined);
+    const database = new DatabaseSync(copy);
     try {
       const meta = database.prepare("SELECT value FROM meta WHERE key = 'version'").get();
       const version = Number(meta?.value ?? 0);
