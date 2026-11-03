@@ -6,6 +6,13 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.59.2] - 2026-11-03
+
+### Fixed
+
+- Include the remote desktop runtime in the Linux arm64 server build again. The 0.59.1 build stopped
+  because the runtime was missing.
+
 ## [0.59.1] - 2026-11-03
 
 ### Added
