@@ -1633,6 +1633,28 @@ export class ProviderRuntime implements ProviderPort {
     return this.status();
   }).bind(this);
 
+  /** Fork: adds an account that uses a signed-in folder of the person's own, with no sign-in. */
+  readonly adoptProviderAccount = Effect.fn("ProviderRuntime.adoptProviderAccount")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    folder: string,
+    label: string,
+  ) {
+    yield* providerStep(() => this.requireProviderOn(provider));
+    const accounts = yield* this.#requireAccounts(provider);
+    yield* accounts.adopt(provider, folder, label).pipe(toProviderOperationFailed);
+    return this.status();
+  }).bind(this);
+
+  /** Fork: the folders of the person's own that accounts of `provider` use. */
+  readonly adoptedProviderFolders = Effect.fn("ProviderRuntime.adoptedProviderFolders")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+  ) {
+    const accounts = yield* this.#requireAccounts(provider);
+    return accounts.adoptedFolders(provider);
+  }).bind(this);
+
   readonly renameProviderAccount = Effect.fn("ProviderRuntime.renameProviderAccount")(function* (
     this: ProviderRuntime,
     provider: AgentProvider,

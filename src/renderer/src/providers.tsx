@@ -349,6 +349,10 @@ const Providers = createSimpleContext({
         usageResets: (provider) => providersPort().providerUsageResets(provider),
         resetUsage: (provider, accountId) => providersPort().resetProviderUsage({ provider, accountId }),
         signOut: (provider) => apply(providersPort().signOutProvider(provider)),
+        profiles: {
+          list: (provider) => providersPort().providerProfiles(provider),
+          adopt: (provider, path) => apply(providersPort().adoptProviderAccount({ provider, path })),
+        },
         local: true,
       };
     });

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { chmod, mkdir, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { chmod, mkdir, readFile, rm, stat } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import { AGENT_PROVIDERS, type AgentProviderId } from "@openbot/contracts/agent-providers";
 import {
   DEFAULT_PROVIDER_ACCOUNT_ID,
@@ -21,6 +21,11 @@ export interface StoredProviderAccount {
   id: string;
   provider: AccountProvider;
   label: string | null;
+  /**
+   * Fork: a folder of the person's own that is already signed in, such as a Claude Code profile. OpenBot
+   * never made it, so it never signs it out or removes it.
+   */
+  home?: string | undefined;
 }
 
 const ACCOUNT_ID = /^a[0-9a-f]{16}$/u;
@@ -30,7 +35,12 @@ const Label = Schema.NullOr(LabelText);
 const ProviderAccountsFile = Schema.Struct({
   version: Schema.Literal(1),
   accounts: Schema.Array(
-    Schema.Struct({ id: Schema.String.check(Schema.isPattern(ACCOUNT_ID)), provider: Provider, label: Label }),
+    Schema.Struct({
+      id: Schema.String.check(Schema.isPattern(ACCOUNT_ID)),
+      provider: Provider,
+      label: Label,
+      home: Schema.optional(Schema.String),
+    }),
   ),
   /** The names the user gave the first account of each provider. */
   defaultLabels: Schema.Record(Schema.String, LabelText),
@@ -97,8 +107,45 @@ export class ProviderAccountStore {
   /** The folder an account signs in to. Only ids this store made reach a path. */
   home(account: StoredProviderAccount): string {
     if (!ACCOUNT_ID.test(account.id)) throw new Error("Invalid provider account.");
+    if (account.home !== undefined) {
+      if (!isAbsolute(account.home)) throw new Error("Invalid provider account.");
+      return account.home;
+    }
     return join(this.#root, account.id);
   }
+
+  /**
+   * Fork: saves an account that uses `folder`, a signed-in folder of the person's own, as it is. The
+   * same folder is one account. Null at `MAX_PROVIDER_ACCOUNTS`, as for `create`.
+   */
+  readonly adopt = Effect.fn("ProviderAccountStore.adopt")(function* (
+    this: ProviderAccountStore,
+    provider: AccountProvider,
+    folder: string,
+    label: string,
+  ) {
+    if (!isAbsolute(folder))
+      return yield* new ProviderAccountStoreFailed({ cause: new Error("The folder must be an absolute path.") });
+    const folderStat = yield* Effect.tryPromise({
+      try: () => stat(folder),
+      catch: (cause) => new ProviderAccountStoreFailed({ cause }),
+    });
+    if (!folderStat.isDirectory())
+      return yield* new ProviderAccountStoreFailed({ cause: new Error("The account folder is not a folder.") });
+    return yield* this.#change((file) => {
+      const existing = file.accounts.find((account) => account.provider === provider && account.home === folder);
+      if (existing) return Effect.succeed({ file, result: existing });
+      if (file.accounts.filter((account) => account.provider === provider).length + 1 >= MAX_PROVIDER_ACCOUNTS)
+        return Effect.succeed({ file, result: null });
+      const account: StoredProviderAccount = {
+        id: `a${randomBytes(8).toString("hex")}`,
+        provider,
+        label: label.slice(0, PROVIDER_ACCOUNT_LABEL_MAX_LENGTH),
+        home: folder,
+      };
+      return Effect.succeed({ file: { ...file, accounts: [...file.accounts, account] }, result: account });
+    });
+  }).bind(this);
 
   /**
    * Makes an empty, private folder and saves the account that signs in to it. Null when the provider
@@ -184,6 +231,8 @@ export class ProviderAccountStore {
         result: undefined,
       }),
     );
+    // Fork: a folder of the person's own stays with its sign-in.
+    if (account.home !== undefined) return;
     yield* Effect.tryPromise({
       try: () => rm(home, { recursive: true, force: true }),
       catch: (cause) => new ProviderAccountStoreFailed({ cause }),

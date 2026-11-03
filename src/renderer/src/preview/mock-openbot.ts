@@ -1320,6 +1320,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return clone(agentStatus);
     },
     // A new account signs in at once: the preview has no browser page to wait for.
+    providerProfiles: async () => [],
+    adoptProviderAccount: async () => clone(agentStatus),
     connectProviderAccount: async ({ provider, accountId }) => {
       const changed = changeProviderAccounts(provider, (accounts) =>
         accountId

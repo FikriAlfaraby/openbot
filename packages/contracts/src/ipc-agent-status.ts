@@ -308,6 +308,20 @@ export interface ConnectProviderAccountInput {
   accountId: string | null;
 }
 
+/** Fork: a signed-in profile folder of the provider's CLI on this computer, such as a Claude Code profile. */
+export interface ProviderProfileFolder {
+  path: string;
+  name: string;
+  /** An account of this computer already uses the folder. */
+  added: boolean;
+}
+
+/** Fork: adds an account that uses one of the listed profile folders, with no sign-in. */
+export interface AdoptProviderAccountInput {
+  provider: AgentProviderId;
+  path: string;
+}
+
 /** A null label returns the account to its email. */
 export interface RenameProviderAccountInput {
   provider: AgentProviderId;

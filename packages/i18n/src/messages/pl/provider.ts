@@ -189,6 +189,12 @@ export const messages = {
   "provider.openCodeKey.removeFailed": "Nie udało się usunąć klucza.",
   "provider.openCodeKey.reconnectFailed": "Nie udało się połączyć ponownie.",
   "provider.account.add": "Dodaj konto",
+  "provider.account.useProfile": "Użyj profilu",
+  "provider.account.useProfileLabel": "Użyj profilu {name} z tego komputera",
+  "provider.account.profilesLoading": "Szukanie profili…",
+  "provider.account.profilesNone": "Brak profilu {name} na tym komputerze",
+  "provider.account.profileAdded": "Dodano",
+  "provider.account.profileFailed": "OpenBot nie mógł dodać profilu {name}.",
   "provider.account.addLabel": "Dodaj kolejne konto {name}",
   "provider.account.count": {
     one: "{count} konto",

@@ -3685,6 +3685,32 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /** Fork: see `ProviderRuntime.adoptProviderAccount`. */
+  adoptProviderAccount(
+    provider: AgentProvider,
+    folder: string,
+    label: string,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#providers
+      .adoptProviderAccount(provider, folder, label)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "adoptProviderAccount", cause: failure.cause }),
+        ),
+      );
+  }
+
+  /** Fork: see `ProviderRuntime.adoptedProviderFolders`. */
+  adoptedProviderFolders(provider: AgentProvider): Effect.Effect<string[], AgentLifecycleFailed> {
+    return this.#providers
+      .adoptedProviderFolders(provider)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "adoptedProviderFolders", cause: failure.cause }),
+        ),
+      );
+  }
+
   /** See `ProviderRuntime.signInProviderAccountOnHost`. */
   signInProviderAccountOnHost(
     provider: AgentProvider,

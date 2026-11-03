@@ -92,6 +92,7 @@ import type { AgentRuntimeSnapshot } from "./ipc-agent-runtime";
 import type { AskSideQuestionInput } from "./ipc-agent-side-question";
 import type {
   AccountUsage,
+  AdoptProviderAccountInput,
   AgentProviderId,
   AgentStatus,
   ConnectProviderAccountInput,
@@ -100,6 +101,7 @@ import type {
   ProviderApiKeyState,
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
+  ProviderProfileFolder,
   ProviderRelaySignInStatus,
   ProviderUsageResetOutcome,
   ProviderUsageResets,
@@ -794,6 +796,9 @@ export const IPC_ENDPOINTS = {
      * `connecting` account cancels its sign-in.
      */
     connectProviderAccount: request<ConnectProviderAccountInput, AgentStatus>()("app:connect-provider-account"),
+    // Fork: signed-in profile folders of a provider's CLI on this computer, and an account that uses one.
+    providerProfiles: request<AgentProviderId, ProviderProfileFolder[]>()("app:provider-profiles"),
+    adoptProviderAccount: request<AdoptProviderAccountInput, AgentStatus>()("app:adopt-provider-account"),
     /** Stops a `connecting` account's sign-in: a new account goes, another one shows as signed out. */
     cancelProviderAccountSignIn: request<RemoveProviderAccountInput, AgentStatus>()(
       "app:cancel-provider-account-sign-in",

@@ -2,6 +2,7 @@ import {
   type AgentProviderId,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   type ProviderAccountStatus,
+  type ProviderProfileFolder,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
 } from "@openbot/contracts/ipc";
@@ -38,6 +39,16 @@ export interface ProviderAccountActions {
    * computer that runs the providers cannot.
    */
   signOut?: ((provider: AgentProviderId) => Promise<void>) | undefined;
+  /**
+   * Fork: the signed-in profile folders of the provider's CLI on this computer, such as Claude Code
+   * profiles, and an account that uses one with no sign-in. Absent on a joined server.
+   */
+  profiles?:
+    | {
+        list: (provider: AgentProviderId) => Promise<readonly ProviderProfileFolder[]>;
+        adopt: (provider: AgentProviderId, path: string) => Promise<void>;
+      }
+    | undefined;
   /** True for this computer's providers, whose own sign-in a terminal CLI shares. */
   local?: boolean | undefined;
 }

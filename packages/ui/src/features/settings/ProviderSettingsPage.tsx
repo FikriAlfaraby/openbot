@@ -16,6 +16,7 @@ import {
   PROMPT_CACHE_TTLS,
   type PromptCacheTtl,
   type ProviderAccountState,
+  type ProviderProfileFolder,
   type ProviderRuntimeDownload,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
@@ -31,6 +32,7 @@ import {
   Copy,
   DropdownMenu,
   Ellipsis,
+  FolderOpen,
   Gauge,
   Input,
   Item,
@@ -587,6 +589,87 @@ function disconnectDescription(
     .join(" ");
 }
 
+type ProfileList = { state: "loading" } | { state: "ready"; folders: readonly ProviderProfileFolder[] };
+
+/**
+ * Fork: the signed-in CLI profiles of this computer, such as Claude Code profiles, read when the menu opens.
+ * A pick adds an account that uses that profile, with no sign-in.
+ */
+function ProviderProfileMenu(props: {
+  provider: AgentProviderId;
+  name: string;
+  profiles: NonNullable<NonNullable<SectionProps["accountActions"]>["profiles"]>;
+  disabled: boolean;
+  onError: (message: string | null) => void;
+}) {
+  const { t, errorMessage } = useText();
+  const [list, setList] = createSignal<ProfileList>({ state: "loading" });
+  const folders = () => {
+    const current = list();
+    return current.state === "ready" ? current.folders : undefined;
+  };
+  const load = (open: boolean) => {
+    if (!open) return;
+    setList({ state: "loading" });
+    props.profiles.list(props.provider).then(
+      (found) => setList({ state: "ready", folders: found }),
+      (failure: unknown) => {
+        setList({ state: "ready", folders: [] });
+        props.onError(errorMessage(failure, t("provider.account.profileFailed", { name: props.name })));
+      },
+    );
+  };
+  const adopt = (folder: ProviderProfileFolder) => {
+    props.onError(null);
+    void props.profiles
+      .adopt(props.provider, folder.path)
+      .catch((failure: unknown) =>
+        props.onError(errorMessage(failure, t("provider.account.profileFailed", { name: props.name }))),
+      );
+  };
+  return (
+    <DropdownMenu.Root placement="bottom-end" gutter={4} onOpenChange={load}>
+      <DropdownMenu.Trigger
+        class={buttonVariants({ variant: "outline", size: "sm" })}
+        aria-label={t("provider.account.useProfileLabel", { name: props.name })}
+        disabled={props.disabled}
+      >
+        <FolderOpen aria-hidden="true" />
+        {t("provider.account.useProfile")}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content>
+          <Show
+            when={folders()}
+            fallback={<DropdownMenu.Item disabled>{t("provider.account.profilesLoading")}</DropdownMenu.Item>}
+          >
+            {(found) => (
+              <For
+                each={found()}
+                keyed={(folder) => folder.path}
+                fallback={
+                  <DropdownMenu.Item disabled>
+                    {t("provider.account.profilesNone", { name: props.name })}
+                  </DropdownMenu.Item>
+                }
+              >
+                {(folder) => (
+                  <DropdownMenu.Item disabled={folder().added} onSelect={() => adopt(folder())}>
+                    <span>{folder().name}</span>
+                    <Show when={folder().added}>
+                      <span class="ui-menu-trailing">{t("provider.account.profileAdded")}</span>
+                    </Show>
+                  </DropdownMenu.Item>
+                )}
+              </For>
+            )}
+          </Show>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 function AccountsSection(props: SectionProps) {
   const { t, format, errorMessage, sourceText } = useText();
   const accounts = () => props.option.accounts ?? [];
@@ -669,19 +752,32 @@ function AccountsSection(props: SectionProps) {
         max: MAX_PROVIDER_ACCOUNTS,
       })}
       actions={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label={t("provider.account.addLabel", { name: props.option.name })}
-          disabled={
-            props.disabled || !props.row.accountsOffered() || accounts().length >= MAX_PROVIDER_ACCOUNTS || adding()
-          }
-          onClick={props.row.addAccount}
-        >
-          <UserRoundPlus aria-hidden="true" />
-          {t("provider.account.add")}
-        </Button>
+        <>
+          <Show when={props.accountActions?.profiles}>
+            {(profiles) => (
+              <ProviderProfileMenu
+                provider={props.option.id}
+                name={props.option.name}
+                profiles={profiles()}
+                disabled={props.disabled || !props.row.accountsOffered() || accounts().length >= MAX_PROVIDER_ACCOUNTS}
+                onError={setError}
+              />
+            )}
+          </Show>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("provider.account.addLabel", { name: props.option.name })}
+            disabled={
+              props.disabled || !props.row.accountsOffered() || accounts().length >= MAX_PROVIDER_ACCOUNTS || adding()
+            }
+            onClick={props.row.addAccount}
+          >
+            <UserRoundPlus aria-hidden="true" />
+            {t("provider.account.add")}
+          </Button>
+        </>
       }
     >
       <ItemGroup class="settings-modal-card" aria-label={t("provider.account.listLabel", { name: props.option.name })}>

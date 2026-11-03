@@ -325,6 +325,36 @@ export class ProviderAccounts {
     this.#host.changed();
   }).bind(this);
 
+  /**
+   * Fork: adds an account that uses a signed-in folder of the person's own, such as a Claude Code
+   * profile, and checks its sign-in at once. There is no sign-in: the folder already has one.
+   */
+  readonly adopt = Effect.fn("ProviderAccounts.adopt")(function* (
+    this: ProviderAccounts,
+    provider: AgentProviderId,
+    folder: string,
+    label: string,
+  ) {
+    const name = providerLabel(provider);
+    if (provider === "acp" || !this.#support(provider))
+      return yield* accountFailure(sourceText("error.provider.accountsUnsupported", { provider: name }));
+    const account = yield* this.#store
+      .adopt(provider, folder, label)
+      .pipe(Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })));
+    if (!account)
+      return yield* accountFailure(
+        sourceText("error.provider.accountLimit", { provider: name, limit: MAX_PROVIDER_ACCOUNTS }),
+      );
+    yield* this.#startCheck(account);
+    this.#host.changed();
+    return account;
+  }).bind(this);
+
+  /** Fork: the folders of the person's own that accounts of `provider` already use. */
+  adoptedFolders(provider: AgentProviderId): string[] {
+    return this.#store.list(provider).flatMap((account) => (account.home === undefined ? [] : [account.home]));
+  }
+
   readonly rename = Effect.fn("ProviderAccounts.rename")(function* (
     this: ProviderAccounts,
     provider: AgentProviderId,
@@ -675,8 +705,9 @@ export class ProviderAccounts {
   ) {
     const command = ProviderAccounts.support(account.provider)?.signOut;
     const cli = this.#host.cli(account.provider);
-    // A key account never signed in; the key goes with the stored credential.
-    if (!command || !cli || isKeyAccount(account)) return;
+    // A key account never signed in; the key goes with the stored credential. Fork: a folder of the
+    // person's own keeps its sign-in, which their own CLI and apps still use.
+    if (!command || !cli || isKeyAccount(account) || account.home !== undefined) return;
     yield* this.#runSignOut(cli, command, this.environment(account)).pipe(
       // The folder goes in any case; a credential the CLI kept elsewhere is the CLI's to clear.
       Effect.catch((error) =>

@@ -4,6 +4,7 @@ import { Effect } from "effect";
 
 import { isManagedRuntimeProvider, type ManagedProviderId } from "@openbot/contracts/agent-providers";
 import {
+  type AdoptProviderAccountInput,
   type AgentProviderId,
   type ConnectProviderAccountInput,
   isProviderAccountId,
@@ -18,6 +19,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { registerSecretValue } from "@openbot/logging";
 import { AgentLifecycleFailed, type AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
+import { listClaudeProfiles } from "../fork/claude-profiles";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import { parseProviderId } from "./app-inputs";
@@ -118,6 +120,19 @@ export function providerIpcHandlers({
           }),
         ),
       ),
+      // Fork: Claude Code profiles of this Mac, which an account can use with no sign-in. Main lists the
+      // folders; the renderer only names one of them back.
+      providerProfiles: payloadHandler(parseProviderId, async (provider) => {
+        if (provider !== "claude") return [];
+        const adopted = new Set(await runCauseEffect(service.adoptedProviderFolders(provider)));
+        return (await listClaudeProfiles()).map((profile) => ({ ...profile, added: adopted.has(profile.path) }));
+      }),
+      adoptProviderAccount: payloadHandler(parseAdoptProviderAccountInput, async ({ provider, path }) => {
+        const profile =
+          provider === "claude" ? (await listClaudeProfiles()).find((entry) => entry.path === path) : undefined;
+        if (!profile) throw new Error("Invalid provider profile.");
+        return runCauseEffect(service.adoptProviderAccount(provider, profile.path, profile.name));
+      }),
       cancelProviderAccountSignIn: payloadHandler(parseRemoveProviderAccountInput, ({ provider, accountId }) =>
         runCauseEffect(service.cancelProviderAccountSignIn(provider, accountId)),
       ),
@@ -202,6 +217,11 @@ export function parseConnectProviderAccountInput(value: unknown): ConnectProvide
     provider: parseProviderId(value.provider),
     accountId: value.accountId === null ? null : requireString(value.accountId, "accountId"),
   };
+}
+
+export function parseAdoptProviderAccountInput(value: unknown): AdoptProviderAccountInput {
+  if (!isDynamicRecord(value)) throw new Error("Invalid provider profile.");
+  return { provider: parseProviderId(value.provider), path: requireString(value.path, "path", 4096) };
 }
 
 export function parseRemoveProviderAccountInput(value: unknown): RemoveProviderAccountInput {

@@ -46,6 +46,7 @@ import {
   MAX_PROVIDER_ACCOUNTS,
   type ProviderApiKeyState,
   type ProviderCodeLoginStart,
+  type ProviderProfileFolder,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
   type SharedTable,
@@ -110,6 +111,21 @@ export function decodeProviderCodeLoginStart(value: unknown): ProviderCodeLoginS
 export function decodeAgentStatusFromMain(value: unknown): AgentStatus {
   if (!isAgentStatus(value)) throw new Error("Invalid agent status response.");
   return value;
+}
+
+/** Fork: main reads the folders itself, so only a path, a name and a flag cross. */
+export function decodeProviderProfileFolders(value: unknown): ProviderProfileFolder[] {
+  if (!Array.isArray(value)) throw new Error("Invalid provider profile list.");
+  return value.map((entry) => {
+    if (
+      !isDynamicRecord(entry) ||
+      typeof entry.path !== "string" ||
+      typeof entry.name !== "string" ||
+      typeof entry.added !== "boolean"
+    )
+      throw new Error("Invalid provider profile list.");
+    return { path: entry.path, name: entry.name, added: entry.added };
+  });
 }
 
 export function decodeAgentRuntimeSnapshot(value: unknown): AgentRuntimeSnapshot | null {
