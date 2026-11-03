@@ -696,7 +696,14 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     },
     chromeSignIn: {
       canStart: canSignInWithChrome,
-      loadProfiles: () => conversationPort().browser.chromeProfiles(),
+      // A failure carries main's own words, without the IPC prefix, so the menu can show them.
+      loadProfiles: () =>
+        conversationPort()
+          .browser.chromeProfiles()
+          .catch((error: unknown) => {
+            const { t, errorMessage } = currentText();
+            throw new Error(errorMessage(error, t("browser.chromeSignIn.failed")));
+          }),
       start: signInWithChrome,
     },
     activeBrowserControl,

@@ -96,7 +96,10 @@ export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boo
   );
 }
 
-type ChromeProfiles = { state: "loading" } | { state: "ready"; profiles: BrowserChromeProfile[] } | { state: "failed" };
+type ChromeProfiles =
+  | { state: "loading" }
+  | { state: "ready"; profiles: BrowserChromeProfile[] }
+  | { state: "failed"; message: string };
 
 /** Fork: the Chrome profiles of this Mac, read when the submenu opens, so macOS asks only on use. */
 function ChromeSignInMenu(props: {
@@ -105,6 +108,10 @@ function ChromeSignInMenu(props: {
 }) {
   const { t } = useText();
   const [profiles, setProfiles] = createSignal<ChromeProfiles>({ state: "loading" });
+  const failure = () => {
+    const current = profiles();
+    return current.state === "failed" ? current.message : undefined;
+  };
   const readyProfiles = () => {
     const current = profiles();
     return current.state === "ready" ? current.profiles : undefined;
@@ -114,24 +121,27 @@ function ChromeSignInMenu(props: {
     setProfiles({ state: "loading" });
     props.chrome.loadProfiles().then(
       (list) => setProfiles({ state: "ready", profiles: list }),
-      () => setProfiles({ state: "failed" }),
+      // The answer says what to do, such as allowing OpenBot to read Chrome's data in System Settings.
+      (error: unknown) =>
+        setProfiles({
+          state: "failed",
+          message: error instanceof Error && error.message ? error.message : t("browser.chromeSignIn.failed"),
+        }),
     );
   };
   return (
     <DropdownMenu.Sub onOpenChange={load}>
       <DropdownMenu.SubTrigger disabled={!props.tabId}>
-        {t("browser.chromeSignIn.menu")}
+        <span>{t("browser.chromeSignIn.menu")}</span>
         <ChevronRight class="agent-context-submenu-chevron size-4" aria-hidden="true" />
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.SubContent>
+        <DropdownMenu.SubContent class="ui-action-menu agent-context-menu agent-context-submenu">
           <Switch>
             <Match when={profiles().state === "loading"}>
               <DropdownMenu.Item disabled>{t("browser.chromeSignIn.loading")}</DropdownMenu.Item>
             </Match>
-            <Match when={profiles().state === "failed"}>
-              <DropdownMenu.Item disabled>{t("browser.chromeSignIn.failed")}</DropdownMenu.Item>
-            </Match>
+            <Match when={failure()}>{(message) => <DropdownMenu.Item disabled>{message()}</DropdownMenu.Item>}</Match>
             <Match when={readyProfiles()}>
               {(list) => (
                 <For
