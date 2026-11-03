@@ -191,6 +191,9 @@ try {
 }
 
 const commandLineUserDataDirectory = app.commandLine.getSwitchValue("user-data-dir").trim();
+// Fork: a desktop build packaged under another product name (such as "OpenBot Fork") keeps its own
+// data folder, so it runs beside the official OpenBot and never opens that app's database.
+const packagedProductName = app.getName();
 const developmentProfile = !app.isPackaged ? readDevelopmentProfile(process.env.OPENBOT_DEV_PROFILE) : null;
 const developmentRemoteRole =
   !app.isPackaged &&
@@ -231,6 +234,8 @@ if (configureLinuxPasswordStore())
   logger.info(`No Chromium keyring for "${process.env.XDG_CURRENT_DESKTOP ?? ""}"; using gnome-libsecret.`);
 if (commandLineUserDataDirectory) {
   app.setPath("userData", resolve(commandLineUserDataDirectory));
+} else if (app.isPackaged && packagedProductName !== "OpenBot") {
+  app.setPath("userData", join(app.getPath("appData"), packagedProductName));
 } else if (!app.isPackaged) {
   app.setPath(
     "userData",
