@@ -306,8 +306,8 @@ export function browserIpcHandlers({
           const url = tabs.find((tab) => tab.id === tabId)?.url;
           return url && URL.canParse(url) && /^https?:$/u.test(new URL(url).protocol) ? new URL(url).hostname : null;
         };
-        // A failure here loses its message over the Effect boundary, so log the cause and rethrow a
-        // clear reason for the menu.
+        // A failure can lose its message over the Effect boundary or be a raw error the menu would not
+        // show, so every failure is logged with its cause, then rethrown with a clear reason.
         const reportFailure = (cause: unknown): never => {
           chromeSignInLogger.warn("The sign-in from Chrome could not be imported.", { cause: toLogValue(cause) });
           if (cause instanceof Error && cause.message) throw cause;
@@ -318,11 +318,7 @@ export function browserIpcHandlers({
             const host = tabHost(await browser.listTabs());
             const cookies = host ? await readChromeSignIn(profileId, host) : [];
             if (cookies.length === 0) return { cookies: 0 };
-            try {
-              return { cookies: await runCauseEffect(browser.importSignIn(tabId, cookies)) };
-            } catch (cause) {
-              return reportFailure(cause);
-            }
+            return { cookies: await runCauseEffect(browser.importSignIn(tabId, cookies)) };
           },
           remote: async (serverId) => {
             if (!remoteServers.supportsCapability(serverId, BROWSER_SIGN_IN_CAPABILITY))
@@ -333,19 +329,15 @@ export function browserIpcHandlers({
             const host = tabHost(tabs);
             const cookies = host ? await readChromeSignIn(profileId, host) : [];
             if (cookies.length === 0) return { cookies: 0 };
-            try {
-              const result = await runCauseEffect(
-                remoteServers.request(serverId, BROWSER_SIGN_IN_ROUTES.import, decodeBrowserSignInResult, {
-                  method: "POST",
-                  body: { tabId, cookies },
-                }),
-              );
-              return { cookies: result.cookies };
-            } catch (cause) {
-              return reportFailure(cause);
-            }
+            const result = await runCauseEffect(
+              remoteServers.request(serverId, BROWSER_SIGN_IN_ROUTES.import, decodeBrowserSignInResult, {
+                method: "POST",
+                body: { tabId, cookies },
+              }),
+            );
+            return { cookies: result.cookies };
           },
-        });
+        }).catch(reportFailure);
       }),
       takeControl: payloadHandler(stringPayload("tabId"), (tabId) =>
         routeToServer(remoteServers.activeServerId, {
