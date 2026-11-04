@@ -175,23 +175,30 @@ afterEach(async () => {
 
 describe("travel handover", () => {
   it("copies the chat, hands it over on a reply in the copy, and brings it back", async () => {
-    mac.chat.writeMainChat("chief", [
-      message("m1", "user", "Plan the release"),
-      message("m2", "assistant", "Here is the plan", {
-        attachments: [
-          {
-            id: "f1",
-            name: "plan.md",
-            size: 5,
-            kind: "file",
-            mimeType: "text/markdown",
-            previewKind: "text",
-            previewUrl: null,
-          },
-        ],
-      }),
-      message("m3", "assistant", "Still writing", { status: "streaming" }),
-    ]);
+    // The turn is still running: its streaming answer waits.
+    mac.database.persistConversationChanges({
+      agentId: "chief",
+      threadId: "thread-chief",
+      activeTurnId: "turn-1",
+      eventType: "fork.handover-copied",
+      changedMessages: [
+        message("m1", "user", "Plan the release"),
+        message("m2", "assistant", "Here is the plan", {
+          attachments: [
+            {
+              id: "f1",
+              name: "plan.md",
+              size: 5,
+              kind: "file",
+              mimeType: "text/markdown",
+              previewKind: "text",
+              previewUrl: null,
+            },
+          ],
+        }),
+        message("m3", "assistant", "Still writing", { status: "streaming", turnId: "turn-1" }),
+      ],
+    });
 
     await sync.round();
 
@@ -237,6 +244,26 @@ describe("travel handover", () => {
     // The copy follows the computer again.
     await sync.round();
     expect(texts(cloud.database, "copy-chief", "thread-copy")).toContain("assistant: Done writing");
+  });
+
+  it("copies a message that an ended turn left streaming, and the messages after it", async () => {
+    // The turn ended with its plan still marked streaming; it will never finish.
+    mac.chat.writeMainChat("chief", [
+      message("m1", "user", "Fix the bug"),
+      message("m2", "assistant", "Plan: read, fix, test", { status: "streaming", turnId: "turn-old" }),
+      message("m3", "assistant", "Fixed"),
+    ]);
+    await sync.round();
+    expect(texts(cloud.database, "copy-chief", "thread-copy")).toEqual([
+      "user: Fix the bug",
+      "assistant: Plan: read, fix, test",
+      "assistant: Fixed",
+    ]);
+    expect(cloud.database.readConversation("copy-chief", "thread-copy").messages.map((entry) => entry.status)).toEqual([
+      "completed",
+      "completed",
+      "completed",
+    ]);
   });
 
   it("keeps the lock while the copy still answers", async () => {

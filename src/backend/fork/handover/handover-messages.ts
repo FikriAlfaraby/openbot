@@ -8,6 +8,7 @@ import type { ConversationMessage } from "@openbot/contracts/ipc";
 import {
   databaseRows,
   decodeConversationMessageJson,
+  optionalStringColumn,
   requiredNumberColumn,
   requiredStringColumn,
 } from "../../database/database-rows";
@@ -21,9 +22,8 @@ const HANDOVER_BATCH_MESSAGES = 200;
 
 const PROMPT_ITEM_TYPES = new Set(["question_prompt"]);
 
-/** The message as the copy keeps it, or null for one that is not finished yet. */
-function copyableMessage(message: ConversationMessage): ConversationMessage | null {
-  if (message.status === "streaming") return null;
+/** The message as the copy keeps it. */
+function copyableMessage(message: ConversationMessage): ConversationMessage {
   const {
     attachments,
     voiceRecording,
@@ -44,6 +44,8 @@ function copyableMessage(message: ConversationMessage): ConversationMessage | nu
   const prompt = questionPrompt !== undefined || uiBlock !== undefined || PROMPT_ITEM_TYPES.has(message.itemType ?? "");
   return {
     ...kept,
+    // A message left streaming by a turn that ended will not finish: the copy keeps it as it is.
+    status: message.status === "streaming" ? "completed" : message.status,
     text:
       text.length > HANDOVER_MESSAGE_CHARACTERS
         ? `${text.slice(0, HANDOVER_MESSAGE_CHARACTERS)}\n[... the rest stays on the computer ...]`
@@ -65,17 +67,22 @@ export interface ChatChanges {
 
 /**
  * The finished messages of `threadId` written after `cursor`, oldest first, cut to one push. A
- * message that is still streaming is left out; when it finishes, its sequence grows past the cursor.
+ * message that the running turn still writes is left out; when it finishes, its sequence grows past
+ * the cursor. A turn can end with a message still marked streaming, and that one goes as it is.
  *
  * One event can write several messages with one sequence. The cursor moves past a sequence only when
  * all of its messages went, so a push that stops inside one sends that sequence again next time; the
  * server writes a message it has already as the same message.
  */
 export function readChatChanges(db: DatabaseSync, threadId: string, cursor: number): ChatChanges {
+  const [thread] = databaseRows(
+    db.prepare("SELECT active_turn_id FROM projection_threads WHERE thread_id = ?").all(threadId),
+  );
+  const activeTurn = thread ? optionalStringColumn(thread, "active_turn_id") : null;
   const rows = databaseRows(
     db
       .prepare(
-        `SELECT message_json, last_event_sequence FROM projection_thread_messages
+        `SELECT message_json, last_event_sequence, turn_id FROM projection_thread_messages
          WHERE thread_id = ? AND last_event_sequence > ?
          ORDER BY last_event_sequence, ordinal LIMIT ?`,
       )
@@ -102,11 +109,12 @@ export function readChatChanges(db: DatabaseSync, threadId: string, cursor: numb
       lastSequence = sequence;
       continue;
     }
-    const copy = copyableMessage(message);
-    if (!copy) {
+    const turn = optionalStringColumn(row, "turn_id");
+    if (message.status === "streaming" && activeTurn !== null && (turn === null || turn === activeTurn)) {
       streaming = true;
       break;
     }
+    const copy = copyableMessage(message);
     const size = Buffer.byteLength(JSON.stringify(copy));
     if (messages.length > 0 && bytes + size > HANDOVER_BATCH_BYTES) break;
     messages.push(copy);
