@@ -6,6 +6,13 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.60.2] - 2026-11-04
+
+### Fixed
+
+- A chat stopped being copied to the travel server when an ended turn left a message marked as
+  still being written. That message and the ones after it are now copied.
+
 ## [0.60.1] - 2026-11-04
 
 ### Added
