@@ -58,6 +58,10 @@ export const messages = defineMessages("error.agent", {
   "error.agent.waitBeforeCompactContext": "Wait for the active turn and queue to finish before compacting the context.",
   "error.agent.compactContextUnavailable": "This agent cannot compact its context now.",
   "error.agent.unknown": "Unknown agent: {id}",
+  // Fork: travel handover (docs/fork/travel-handover.md).
+  "error.agent.handoverLocked": "This chat continues on {server}. Bring it back to write here.",
+  "error.agent.handoverBusy": "{server} is still answering in this chat. Try again when it finishes.",
+  "error.agent.handoverUnavailable": "{server} cannot be reached. Try again when it is online.",
   "error.agent.onlyUserWidensSettings":
     "Only the user can give an agent Full access or turn Computer Use on. Ask the user to change it in the agent's settings.",
   "error.agent.queuedMessageCreateFailed": "Unable to create queued message.",

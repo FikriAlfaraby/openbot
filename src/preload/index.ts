@@ -31,6 +31,7 @@ import {
   decodeChannelRoutineRuns,
   decodeChannelRoutines,
   decodeChannelSummaries,
+  decodeForkHandoverStatesFromMain,
   decodeHermesImportPreview,
   decodeHermesImportResult,
   decodeHostAgentMemoryLimit,
@@ -1178,6 +1179,12 @@ const openbotApi: OpenBotDesktopApi = {
     choose: decodeInstanceTransferPreview,
     apply: decodeInstanceTransferResult,
     discard: decodeVoid,
+  }),
+  // Fork: travel handover.
+  forkHandover: bridgeGroup(IPC_ENDPOINTS.forkHandover, {
+    states: decodeForkHandoverStatesFromMain,
+    bringBack: decodeVoid,
+    changed: decodeForkHandoverStatesFromMain,
   }),
   marketplaceAgents: bridgeGroup(IPC_ENDPOINTS.marketplaceAgents, {
     list: decodeMarketplaceAgentPage,

@@ -153,3 +153,14 @@ since its template is written at its next session; a worker with no persona, or 
 `routing_summary`, gets a warning, because the Router picks a worker by that line in
 `list_agents`.
 
+
+## Travel handover
+
+```yaml
+handover:
+  server: fikri-cloud   # the joined server that keeps a copy of the chats
+  agents: [a1b2c3]      # optional; omit for every agent
+  everyMinutes: 3       # optional; 1 to 120
+```
+
+Only on a desktop. See [travel-handover.md](travel-handover.md).

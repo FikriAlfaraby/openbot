@@ -87,6 +87,16 @@ const WatchdogSettings = Schema.Struct({
   staleMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 10, maximum: 10_080 }))),
 });
 
+/** Travel handover (docs/fork/travel-handover.md): the server that keeps a copy of this computer's chats. */
+const HandoverSettings = Schema.Struct({
+  /** The joined server, by its name in the server list or its id. */
+  server: PlainText(120),
+  /** The agents to copy; omit for every agent. */
+  agents: Schema.optionalKey(Schema.Array(AgentId).check(Schema.isMaxLength(200))),
+  /** How often the copy is brought up to date. */
+  everyMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 120 }))),
+});
+
 const ForkConfigDocument = Schema.Struct({
   version: Schema.Literal(1),
   watchdog: Schema.optionalKey(WatchdogSettings),
@@ -103,9 +113,18 @@ const ForkConfigDocument = Schema.Struct({
   chat: Schema.optionalKey(ChatSettings),
   t3: Schema.optionalKey(T3Settings),
   mcp: Schema.optionalKey(Schema.Record(PlainText(128), McpAccess)),
+  handover: Schema.optionalKey(HandoverSettings),
 });
 
 export type ForkT3Settings = typeof T3Settings.Type;
+
+/** The travel handover settings, as the file names them. */
+export interface ForkHandoverSettings {
+  server: string;
+  /** Null for every agent. */
+  agents: readonly string[] | null;
+  everyMinutes: number | null;
+}
 
 /** The configuration that the host uses. */
 export interface ForkConfig {
@@ -128,6 +147,8 @@ export interface ForkConfig {
   agentBudgets: ReadonlyMap<string, { dailyTokens?: number; dailyUsd?: number }>;
   /** Days after its end before a ticket moves to the archive (item 4.4); null for the default. */
   archiveAfterDays: number | null;
+  /** Travel handover; null when the file names no server. */
+  handover: ForkHandoverSettings | null;
 }
 
 const EMPTY_FORK_CONFIG: ForkConfig = {
@@ -141,6 +162,7 @@ const EMPTY_FORK_CONFIG: ForkConfig = {
   budget: null,
   agentBudgets: new Map(),
   archiveAfterDays: null,
+  handover: null,
 };
 
 const decodeDocument = Schema.decodeUnknownResult(ForkConfigDocument, { onExcessProperty: "error" });
@@ -184,6 +206,7 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
       watchdog: decoded.success.watchdog ?? null,
       budget: decoded.success.budget ?? null,
       archiveAfterDays: decoded.success.storage?.archiveAfterDays ?? null,
+      handover: handoverOf(decoded.success.handover),
       agentBudgets,
       gates: new Map(
         Object.entries(decoded.success.gate ?? {}).map(([platform, entry]) => [
@@ -193,6 +216,11 @@ export function parseForkConfig(text: string): ForkConfigParseResult {
       ),
     },
   };
+}
+
+function handoverOf(entry: typeof HandoverSettings.Type | undefined): ForkHandoverSettings | null {
+  if (!entry) return null;
+  return { server: entry.server, agents: entry.agents ?? null, everyMinutes: entry.everyMinutes ?? null };
 }
 
 export interface ForkConfigState {

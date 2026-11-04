@@ -47,6 +47,8 @@ import { speechReading } from "../speech/speech-playback";
 import { stopSpokenReply } from "../speech/speech-replies";
 import { copyComposerSelection, readComposerCopy } from "./composer-clipboard";
 import { useConversationViewScope } from "./conversation-scope";
+import { HandoverLockNotice } from "./HandoverLockNotice";
+import { handoverLockOf } from "./handover-lock";
 import { currentConversationTarget } from "./stores/composer-store";
 
 // Module scope: the composer remounts on navigation, and a dismissed notice must stay dismissed.
@@ -380,12 +382,16 @@ export function ConversationComposer() {
       onSend={submitComposer}
     />
   );
+  // Fork: travel handover. A chat that a person continued on a server is written there, not here.
+  const handoverLock = () => (props.agent && !channel ? handoverLockOf(props.agent.id) : null);
   return (
     <Show
       when={!channel?.readOnly()}
       fallback={<p class="channel-preview-notice">{t("channel.conversation.archivedNotice")}</p>}
     >
-      <ComposerBody />
+      <Show when={handoverLock()} fallback={<ComposerBody />}>
+        {(lock) => <HandoverLockNotice agentId={lock().agentId} serverName={lock().serverName} />}
+      </Show>
     </Show>
   );
   function ComposerBody() {

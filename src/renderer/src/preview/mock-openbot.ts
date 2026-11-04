@@ -3366,6 +3366,17 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       discardHermes: async () => undefined,
     },
+    // Fork: travel handover. The preview keeps no copy on any server.
+    forkHandover: {
+      states: async () => [],
+      bringBack: async (agentId) => {
+        void agentId;
+      },
+      onChanged: (listener) => {
+        void listener;
+        return () => undefined;
+      },
+    },
     instanceTransfer: {
       summary: async () =>
         clone({

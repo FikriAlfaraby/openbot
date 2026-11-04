@@ -195,6 +195,7 @@ import { McpServerError } from "../backend/mcp-server-store";
 import { StoredStateFailure } from "../backend/stored-state-effects";
 import type { TeamChatStore } from "../backend/team-chat-store";
 import { agentAccessLevel } from "./agent-access-store";
+import { forkHandoverServer } from "./fork/handover/handover-server";
 import { LifecycleGate } from "./lifecycle-gate";
 import { listenLoopback } from "./listen-loopback";
 import { RemoteScreenError } from "./remote-screen-gateway";
@@ -265,6 +266,7 @@ import { routeDiscordAccess } from "./team-api/route-discord-access";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
 import { routeFocusUse } from "./team-api/route-focus-use";
+import { routeForkHandover } from "./team-api/route-fork-handover";
 import { routeHostAdmin } from "./team-api/route-host-admin";
 import { routeHostKeyRotation } from "./team-api/route-host-key-rotation";
 import { routeHostTimezone } from "./team-api/route-host-timezone";
@@ -1096,6 +1098,8 @@ export class TeamApiServer {
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if ((await routeInstanceTransfer(context, this.#options.instanceTransfer, newAgentHidden)) === "handled") return;
+      // Fork: travel handover (docs/fork/travel-handover.md).
+      if ((await routeForkHandover(context, forkHandoverServer())) === "handled") return;
       if (
         // The ID, not the member: the registration outlives a role change.
         (await routeLiveActivityPush(context, this.#options.liveActivityPush, () =>

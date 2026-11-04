@@ -1,6 +1,10 @@
 import { defineMessages } from "../../message";
 
 export const messages = defineMessages("conversation", {
+  // Fork: travel handover (docs/fork/travel-handover.md).
+  "conversation.handover.notice": "This chat continues on {server}.",
+  "conversation.handover.bringBack": "Bring back",
+  "conversation.handover.bringingBack": "Bringing back",
   "conversation.globalSearch.title": "Search OpenBot",
   "conversation.globalSearch.filter": "Filter results",
   "conversation.globalSearch.tab.all": "All",

@@ -239,6 +239,9 @@ import { budgetFinding, budgetNote, ForkBudget } from "./fork/budget";
 import { chatCommandOf, helpReply, signOffReply, ticketDetailReply, ticketStatusReply } from "./fork/chat-commands";
 import type { DoctorAgent, DoctorFinding } from "./fork/doctor";
 import { type GateDecision, gateDecision, recordObservation } from "./fork/gate";
+import { HandoverConversation } from "./fork/handover/handover-conversation";
+import { handoverBeforeUserMessage } from "./fork/handover/handover-guard";
+import { handoverStoreFor } from "./fork/handover/handover-store";
 import { limitWords, SPILL_NOTE } from "./fork/reply-rules";
 import {
   forkArchiveAfterDays,
@@ -1091,6 +1094,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
       channelThread: (threadId) => this.channels.store.channelForThread(threadId) !== null,
       branchThread: (threadId) => this.#tasks.isBranchThread(threadId),
+      // Fork: travel handover (docs/fork/travel-handover.md).
+      copyThread: (threadId) => handoverStoreFor(this.#store.database.userDataPath).isCopyThread(threadId),
       hooks: {
         logRecovery: (agentId, provider, outcome) =>
           logger.warn("Recovered an unavailable provider session.", { agentId, provider, outcome }),
@@ -4844,6 +4849,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     const task = taskId
       ? yield* lifecycleStep("find message task", () => this.#tasks.requireOpen(agent.id, taskId))
       : null;
+    // Fork: travel handover. A copy's chat is taken over; a chat that a server owns is refused.
+    yield* lifecycleStep("check travel handover", () =>
+      handoverBeforeUserMessage(
+        handoverStoreFor(this.#store.database.userDataPath),
+        this.#store.database.connection,
+        agent,
+        task?.taskId ?? null,
+      ),
+    );
     const receipt = yield* this.#mailbox
       .enqueue({
         sender: { kind: "user" },
@@ -5282,6 +5296,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         Effect.forkIn(this.#scope, { startImmediately: true }),
       ),
     );
+  }
+
+  /** Fork: the conversation steps of travel handover (docs/fork/travel-handover.md). */
+  forkHandoverConversation(): HandoverConversation {
+    return new HandoverConversation({
+      conversation: this.#conversation,
+      threads: this.#threads,
+      database: this.#store.database,
+      listAgents: () => this.#store.list(),
+    });
   }
 
   #watchdogTimer: ReturnType<typeof setInterval> | null = null;

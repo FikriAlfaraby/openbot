@@ -6,7 +6,7 @@
 
 import { dirname } from "node:path";
 import type { BudgetLimit } from "./budget";
-import { ForkConfigReader, type ForkRole, type ForkT3Settings } from "./fork-config";
+import { ForkConfigReader, type ForkHandoverSettings, type ForkRole, type ForkT3Settings } from "./fork-config";
 import type { PlatformGate } from "./gate";
 import { DEFAULT_CHAT_MAX_WORDS } from "./reply-rules";
 import { DEFAULT_ARCHIVE_AFTER_DAYS } from "./storage/ticket-archive";
@@ -193,4 +193,9 @@ export function forkArchiveAfterDays(sharedRoot: string): number {
 /** The language of the host's chat command replies (item 5.2). */
 export function forkCommandLanguage(sharedRoot: string): "id" | "en" {
   return readerFor(sharedRoot).current().config.commandLanguage ?? "id";
+}
+
+/** The travel handover settings of `fork-config.yaml`, or null (docs/fork/travel-handover.md). */
+export function forkHandoverSettings(sharedRoot: string): ForkHandoverSettings | null {
+  return readerFor(sharedRoot).current().config.handover;
 }

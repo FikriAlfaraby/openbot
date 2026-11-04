@@ -212,6 +212,8 @@ export interface ThreadLifecycleOptions {
   channelThread?: (threadId: string) => boolean;
   /** Whether a side thread is a branch: a copy of another conversation, which its first session must receive. */
   branchThread?: (threadId: string) => boolean;
+  /** Fork: whether a chat is a travel-handover copy, whose first session must receive the copied history. */
+  copyThread?: (threadId: string) => boolean;
 }
 
 /**
@@ -245,6 +247,7 @@ export class ThreadLifecycle {
   readonly #sectionTeammates: (agentId: string) => SectionTeammates | null;
   readonly #channelThread: (threadId: string) => boolean;
   readonly #branchThread: (threadId: string) => boolean;
+  readonly #copyThread: (threadId: string) => boolean;
   readonly #pendingHandoffs = new Map<string, string>();
   readonly #pendingRuntimeRefreshes = new Set<string>();
   /**
@@ -277,6 +280,7 @@ export class ThreadLifecycle {
     this.#sectionTeammates = options.sectionTeammates ?? (() => null);
     this.#channelThread = options.channelThread ?? (() => false);
     this.#branchThread = options.branchThread ?? (() => false);
+    this.#copyThread = options.copyThread ?? (() => false);
   }
 
   /**
@@ -1699,7 +1703,9 @@ export class ThreadLifecycle {
     const sessions = this.#store.database.listProviderSessions(threadId);
     // A branch starts with a copied conversation and no session, so its first session gets the copy.
     const branch = this.#conversation.isTaskThread(threadId) && this.#branchThread(threadId);
-    if (sessions.length < 1 && !branch) return null;
+    // Fork: a travel-handover copy also starts with copied messages and no session.
+    const copy = this.#copyThread(threadId);
+    if (sessions.length < 1 && !branch && !copy) return null;
     const agentNames = agentNamesById(this.#store.list());
     const history = readHandoffHistory(this.#store.database, agentId, threadId, agentNames);
     const captures = new Map<string, Map<string, string> | null>();
@@ -1715,7 +1721,7 @@ export class ThreadLifecycle {
       const text = captures.get(session.id)?.get(row.message.turnId);
       if (text) steps.set(row.message.id, text);
     }
-    return renderProviderHandoff(history, agentNames, steps, { branch });
+    return renderProviderHandoff(history, agentNames, steps, { branch, copy });
   }).bind(this);
 }
 

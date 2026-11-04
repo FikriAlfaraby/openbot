@@ -44,6 +44,7 @@ import { CUSTOM_PROVIDER_HARNESS_CODECS } from "./custom-provider-harness-v1";
 import { DISCORD_ACCESS_CODECS } from "./discord-access-v1";
 import { EVENTS_CODECS } from "./events-v1";
 import { FOCUS_USE_CODECS } from "./focus-use-v1";
+import { TRAVEL_HANDOVER_CODECS } from "./fork-travel-handover-v1";
 import { HOST_ADMIN_CODECS } from "./host-admin-v1";
 import { HOST_KEY_ROTATION_CODECS } from "./host-key-rotation-v1";
 import { HOST_MEMBER_UPDATE_CODECS } from "./host-member-update-v1";
@@ -132,6 +133,8 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...EVENTS_CODECS,
   ...AGENT_IMPORT_CODECS,
   ...INSTANCE_TRANSFER_CODECS,
+  // Fork: travel handover (docs/fork/travel-handover.md).
+  ...TRAVEL_HANDOVER_CODECS,
   ...AGENT_PUBLISH_CODECS,
   ...LIVE_ACTIVITY_PUSH_CODECS,
   ...PUSH_NOTIFICATIONS_CODECS,

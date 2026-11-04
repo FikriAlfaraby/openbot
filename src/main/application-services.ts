@@ -11,6 +11,7 @@ import { AgentDatabaseSupervisor } from "../backend/agent-data/agent-database-su
 import { AgentTables } from "../backend/agent-data/agent-tables";
 import { AgentRoutineStore } from "../backend/agent-routine-store";
 import { runForkDoctor } from "../backend/fork/doctor-node";
+import { forkHandoverSettings } from "../backend/fork/router-policy";
 import { DiscordConnectFailed, toDiscordConnectFailed } from "../backend/messaging/discord/discord-connect";
 import { SlackConnectFailed, toSlackConnectFailed } from "../backend/messaging/slack/slack-connect";
 import { routineFlowRoutines } from "../backend/routine-flows/routine-flow-routines";
@@ -32,6 +33,9 @@ import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-
 import { type AgentInstructionsFiles, createAgentInstructionsFiles } from "./agent-instructions-files";
 import { type BrowserProfileService, createBrowserProfileService } from "./browser-profile-service";
 import { ChromeProfileSync } from "./fork/chrome-profile-sync";
+import { handoverRemote } from "./fork/handover/handover-remote";
+import { HandoverServer, setForkHandoverServer } from "./fork/handover/handover-server";
+import { HandoverSync } from "./fork/handover/handover-sync";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
 import {
   CONTAINER_UPDATE_PATHS,
@@ -683,6 +687,8 @@ export interface ApplicationServices {
   appliedAccount: CentralAuthState;
   /** Left un-awaited on purpose: the account settles in the background while the app opens. */
   centralAuthInitialization: Effect.Effect<CentralAuthState, RemoteWorkflowError>;
+  /** Fork: travel handover (docs/fork/travel-handover.md); null on a server. */
+  handoverSync: HandoverSync | null;
 }
 
 /** How the driver's own state reads as the capability the Team API projects. */
@@ -3048,6 +3054,20 @@ export async function createApplicationServices({
   // account check and its coalescing; this only forwards the notice to it.
   teamWebRtcBridge.on("accountServersChanged", () => void Effect.runPromise(remoteServers.invalidateDirectory()));
   teardown.push(TEARDOWN_ORDER.remoteServers, "the remote servers", () => runCauseEffect(remoteServers.stop()));
+  // Fork: travel handover (docs/fork/travel-handover.md). Every host can keep copies; only the
+  // desktop sends them, to the server that `fork-config.yaml` names.
+  const handoverConversation = service.forkHandoverConversation();
+  setForkHandoverServer(new HandoverServer({ conversation: handoverConversation, routines: service }));
+  const handoverSync =
+    localServerChild || serverModeEnvironment || hostedServer
+      ? null
+      : new HandoverSync({
+          conversation: handoverConversation,
+          remote: handoverRemote(remoteServers, instanceTransfer),
+          localServerId: () => teamStore.getIdentity()?.serverId ?? null,
+          settings: () => forkHandoverSettings(store.sharedRoot),
+        });
+  if (handoverSync) teardown.push(TEARDOWN_ORDER.remoteServers, "travel handover", () => handoverSync.stop());
   performance.mark("openbot:services.plugin-catalog");
   // Not on a server: a local server is a workspace of the desktop app.
   const localServers =
@@ -3642,5 +3662,7 @@ export async function createApplicationServices({
     teamStore,
     appliedAccount: signedInState,
     centralAuthInitialization,
+    // Fork: travel handover; null on a server.
+    handoverSync,
   };
 }

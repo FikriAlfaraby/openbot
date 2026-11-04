@@ -73,6 +73,7 @@ import { customProviderIpcHandlers } from "./ipc/custom-provider-handlers";
 import { registerIpcGroups } from "./ipc/define-ipc-group";
 import { dynamicIslandIpcHandlers } from "./ipc/dynamic-island-handlers";
 import { eventsIpcHandlers } from "./ipc/events-handlers";
+import { forkHandoverIpcHandlers, forkHandoverStates } from "./ipc/fork-handover-handlers";
 import { githubConnectorIpcHandlers } from "./ipc/github-connector-handlers";
 import { hostAdminIpcHandlers } from "./ipc/host-admin-handlers";
 import { hostedServerIpcHandlers } from "./ipc/hosted-server-handlers";
@@ -665,6 +666,7 @@ function registerIpcHandlers({
   agentImport,
   hermesImport,
   instanceTransfer,
+  handoverSync,
   voice,
   speech,
   voiceServer,
@@ -785,6 +787,8 @@ function registerIpcHandlers({
       getMainWindow: getDialogParent,
       translate: language.translate,
     }),
+    // Fork: travel handover.
+    ...forkHandoverIpcHandlers({ handoverSync }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
@@ -1335,6 +1339,20 @@ if (!hasSingleInstanceLock) {
         if (principalId !== null) built.eventsRuntime.syncRoutes({ all: true });
       };
       service.on("event", onRoutineEvent);
+      // Fork: travel handover. A finished turn brings the copy up to date, and a lock reaches the chats.
+      const handoverSync = built.handoverSync;
+      if (handoverSync) {
+        service.on("event", (event) => {
+          if (event.type === "turn-completed") handoverSync.turnEnded(event.agentId);
+        });
+        handoverSync.onChange(() => {
+          const states = forkHandoverStates(handoverSync);
+          sendToRenderer(windowHolder.current, IPC_ENDPOINTS.forkHandover.changed, states);
+          for (const chatWindow of windows.getChatWindows())
+            sendToRenderer(chatWindow, IPC_ENDPOINTS.forkHandover.changed, states);
+        });
+        handoverSync.start();
+      }
       built.centralAuth.on("changed", refreshWebhookRoutes);
       let webhookHostId = host.getStatus().serverId;
       const onHostChanged = (status: HostStatus): void => {

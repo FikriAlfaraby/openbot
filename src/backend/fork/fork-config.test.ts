@@ -49,6 +49,21 @@ describe("parseForkConfig", () => {
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.issue).toContain("role");
   });
+
+  it("reads the travel handover server and its agents", () => {
+    const all = parseForkConfig("version: 1\nhandover:\n  server: fikri-cloud\n");
+    expect(all).toMatchObject({
+      ok: true,
+      config: { handover: { server: "fikri-cloud", agents: null, everyMinutes: null } },
+    });
+    const some = parseForkConfig(
+      "version: 1\nhandover:\n  server: fikri-cloud\n  agents: [a1, b2]\n  everyMinutes: 5\n",
+    );
+    expect(some).toMatchObject({ ok: true, config: { handover: { agents: ["a1", "b2"], everyMinutes: 5 } } });
+    expect(parseForkConfig("version: 1\nhandover:\n  agents: [a1]\n").ok).toBe(false);
+    expect(parseForkConfig("version: 1\nhandover:\n  server: x\n  everyMinutes: 0\n").ok).toBe(false);
+    expect(parseForkConfig("version: 1\n")).toMatchObject({ ok: true, config: { handover: null } });
+  });
 });
 
 describe("ForkConfigReader", () => {

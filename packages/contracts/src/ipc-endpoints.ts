@@ -318,6 +318,7 @@ import type {
   ExternalLinkFallback,
   ExternalLinkPreference,
 } from "./ipc-external-links";
+import type { ForkHandoverAgentState } from "./ipc-fork-handover";
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
 import type { ApplyHermesImportInput, HermesImportPreview } from "./ipc-hermes-import";
 import type { HiddenAgentsSnapshot, SetAgentHiddenInput } from "./ipc-hidden-agents";
@@ -1947,6 +1948,13 @@ export const IPC_ENDPOINTS = {
     apply: scopedRequest<ApplyInstanceTransferInput, InstanceTransferResult, "required">()("instance-transfer:apply"),
     discard: scopedRequest<string, void, "required">()("instance-transfer:discard"),
   },
+  // Fork: travel handover (docs/fork/travel-handover.md). The agents of this computer whose copy a
+  // server keeps, and bringing a chat back that a person continued there.
+  forkHandover: {
+    states: request<undefined, ForkHandoverAgentState[]>()("fork-handover:states"),
+    bringBack: request<string, void>()("fork-handover:bring-back"),
+    changed: event<ForkHandoverAgentState[]>()("fork-handover:changed"),
+  },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
   // asks for; `openListing` is the same slug pushed to a window that was already there.
@@ -2080,6 +2088,7 @@ export const IPC_GROUP_PATHS = {
   storage: "storage",
   agentImport: "agentImport",
   instanceTransfer: "instanceTransfer",
+  forkHandover: "forkHandover",
   plugins: "plugins",
   marketplace: "marketplace",
   host: "host",

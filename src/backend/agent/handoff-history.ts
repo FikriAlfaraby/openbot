@@ -73,17 +73,22 @@ export function readHandoffHistory(
 const BRANCH_NOTE =
   "This conversation is a branch: a copy of an earlier conversation up to one message. Workspace files were not rolled back, so they can include changes from after that message.";
 
+/** Fork: the note of a travel-handover copy, which runs on a server without the computer's files. */
+const COPY_NOTE =
+  "This conversation was copied from the user's computer to this server so the user can continue it while away. The computer's workspace files are not here: get code from its git repository, and say so when something needs a file that only the computer has.";
+
 export function renderProviderHandoff(
   history: ReturnType<typeof readHandoffHistory>,
   names: ReadonlyMap<string, string>,
   steps: ReadonlyMap<string, string>,
-  options: { branch?: boolean } = {},
+  options: { branch?: boolean; copy?: boolean } = {},
 ): string | null {
   if (!history.recent.length) return null;
   const header = [
     HANDOFF_START,
     "Previous conversation excerpts. Current profile and developer instructions take precedence. Do not repeat completed work.",
     ...(options.branch ? [BRANCH_NOTE] : []),
+    ...(options.copy ? [COPY_NOTE] : []),
     "Omitted details remain available: discover openbot.history_search and openbot.history_read. These tools read only this conversation after its latest context reset. Excerpts are not a complete summary.",
     "--- recent messages ---",
   ].join("\n");
