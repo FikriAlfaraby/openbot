@@ -45,9 +45,16 @@ function accountFailure(text: string): ProviderAccountFailed {
   return new ProviderAccountFailed({ cause: new Error(text) });
 }
 
+/** Who a client is signed in as. A team and a personal login can share an email in different organizations. */
+interface AccountLogin {
+  email: string | null;
+  organization: string | null;
+}
+
 interface AccountState {
   state: ProviderAccountState;
   email: string | null;
+  organization: string | null;
   message: string | null;
   checkedAt: number;
 }
@@ -57,7 +64,8 @@ export interface ProviderAccountsHost {
   scope(): Scope.Scope;
   /** The CLI of the provider's own sign-in, or undefined when it is not connected. */
   cli(provider: AgentProviderId): AgentCliInfo | undefined;
-  defaultEmail(provider: AgentProviderId): string | null;
+  /** The login of the provider's own sign-in. */
+  defaultLogin(provider: AgentProviderId): AccountLogin | null;
   /** The provider's saved API key. */
   apiKey(provider: AgentProviderId): string | null;
   /** Whether the provider's own sign-in runs on its saved key, as it does with no account of its own. */
@@ -609,7 +617,8 @@ export class ProviderAccounts {
       ({ client, account: signedIn }) =>
         Effect.gen({ self: this }, function* () {
           const email = signedIn.email ?? null;
-          if (email && this.#emailTaken(provider, account.id, email))
+          const organization = signedIn.organization ?? null;
+          if (email && this.#loginTaken(provider, account.id, { email, organization }))
             return yield* accountFailure(
               sourceText("error.provider.accountAlreadyAdded", { provider: providerLabel(provider) }),
             );
@@ -635,7 +644,7 @@ export class ProviderAccounts {
                     )
                   : reading
               : null;
-          this.#setState(account.id, { state: "connected", email, message: null });
+          this.#setState(account.id, { state: "connected", email, organization, message: null });
           // The rail shows an account only with a reading, and no usage request follows a sign-in.
           if (limit) this.#host.usageChanged(limit);
         }),
@@ -748,19 +757,15 @@ export class ProviderAccounts {
     );
   }
 
-  #emailTaken(provider: AgentProviderId, accountId: string, email: string): boolean {
-    const normalized = email.toLowerCase();
-    if (this.#host.defaultEmail(provider)?.toLowerCase() === normalized) return true;
+  #loginTaken(provider: AgentProviderId, accountId: string, login: AccountLogin): boolean {
+    const same = (other: AccountLogin | null | undefined) =>
+      other?.email?.toLowerCase() === login.email?.toLowerCase() && other?.organization === login.organization;
+    if (same(this.#host.defaultLogin(provider))) return true;
     // Fork: the key account runs on a saved key, not a sign-in. Its folder can keep the email of an older
     // sign-in, which must not block the account that is signed in with that email now.
     return this.#store
       .list(provider)
-      .some(
-        (other) =>
-          other.id !== accountId &&
-          !isKeyAccount(other) &&
-          this.#states.get(other.id)?.email?.toLowerCase() === normalized,
-      );
+      .some((other) => other.id !== accountId && !isKeyAccount(other) && same(this.#states.get(other.id)));
   }
 
   #interrupt(accountId: string): Effect.Effect<void> {
@@ -793,6 +798,7 @@ export class ProviderAccounts {
     this.#states.set(accountId, {
       state: patch.state ?? current?.state ?? "checking",
       email: patch.email !== undefined ? patch.email : (current?.email ?? null),
+      organization: patch.organization !== undefined ? patch.organization : (current?.organization ?? null),
       message: patch.message !== undefined ? patch.message : (current?.message ?? null),
       checkedAt: patch.state === "connected" || patch.state === "signed-out" ? Date.now() : (current?.checkedAt ?? 0),
     });
