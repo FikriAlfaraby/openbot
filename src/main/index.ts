@@ -28,6 +28,7 @@ import {
   shell,
 } from "electron";
 import { runCauseEffect } from "../backend/effect-boundary";
+import { NewerDatabaseError } from "../backend/openbot-database-schema";
 import { OWNER_NOTIFICATION_KEY } from "./agent-notification-level-store";
 import { watchAppArchive } from "./app-archive-watch";
 import { readAppVariant, resolveAppIconPath, resolveLogoColorIconPath, resolveMenuBarIconPath } from "./app-icon";
@@ -112,7 +113,7 @@ import { installLinuxDesktopEntry } from "./linux-desktop-entry";
 import { configureLinuxGpu } from "./linux-gpu-mode";
 import { configureLinuxPasswordStore } from "./linux-password-store";
 import { restartOnXWaylandWithoutMonitor, takeXWaylandRestartMarker } from "./linux-wayland-output";
-import { takeLocalServerChildEnvironment } from "./local-server-child";
+import { openLocalServerControl, takeLocalServerChildEnvironment } from "./local-server-child";
 import { MacHapticFeedback } from "./mac-haptic-feedback";
 import {
   configureApplicationMenu,
@@ -124,6 +125,7 @@ import {
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
 import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
+import { recoverFromNewerDatabase } from "./newer-database-recovery";
 import { startMainLog } from "./provider-log";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
@@ -228,6 +230,11 @@ const serverMode = takeServerModeEnvironment(process.env, app.isPackaged, proces
 // Always taken, so the owner password leaves the environment also when the flag is refused.
 const localServerChildEnvironment = takeLocalServerChildEnvironment(process.env, commandLineUserDataDirectory);
 const localServerChild = serverMode || hostedServer ? null : localServerChildEnvironment;
+const localServerControl = localServerChild
+  ? openLocalServerControl(process.platform, (cause) =>
+      logger.error("The local server has no control pipe from the desktop app:", toLogValue(cause)),
+    )
+  : null;
 if (serverMode || hostedServer || localServerChild) hideExceptionErrorBox();
 // A local server keeps a main window that never loads. A second launch on its profile, a deep link or
 // an MCP sign-in showed it as an empty window next to the desktop app.
@@ -405,11 +412,14 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
   process.once("SIGINT", quitAfterSignal);
   process.once("SIGTERM", quitAfterSignal);
   process.once("SIGHUP", quitAfterSignal);
-  // The desktop app holds the other end of stdin. Its end means that the app stopped, also by a crash.
+  // The desktop app holds the other end of the control pipe. Its end means that the app stopped, also
+  // by a crash. A process with no pipe cannot know that, so it quits at once.
   if (localServerChild) {
-    process.stdin.once("end", quitAfterSignal);
-    process.stdin.once("error", quitAfterSignal);
-    process.stdin.resume();
+    if (localServerControl) {
+      localServerControl.once("end", quitAfterSignal);
+      localServerControl.once("error", quitAfterSignal);
+      localServerControl.resume();
+    } else quitAfterSignal();
   }
 }
 
@@ -434,6 +444,7 @@ const {
   forwardUpdatePreference,
   forwardVoiceModelStatus,
   forwardVoiceStreamTranscript,
+  forwardVoiceLiveEvent,
   forwardSpeechModelStatus,
   forwardVoiceServerSettings,
   forwardProviderRuntimeStatus,
@@ -1260,6 +1271,7 @@ if (!hasSingleInstanceLock) {
         serverMode,
         hostingDeveloperKey,
         localServerChild,
+        localServerControl,
         macHapticFeedback,
         teardown,
         forwardCentralAuth,
@@ -1387,6 +1399,8 @@ if (!hasSingleInstanceLock) {
       // Team API clients never receive them.
       service.on("toolUsage", (usage) => built.analytics.handleToolUsage(usage));
       service.on("workflowRun", (end) => built.analytics.handleWorkflowRun(end));
+      // Codex live voice goes to this computer's windows only, never to Team API clients.
+      service.on("liveVoice", forwardVoiceLiveEvent);
       built.browser.onSiteVisited((visit) => built.analytics.handleSiteVisit(visit));
       sidebarLayout.on("changed", (layout) => forwardAgentEvent("local", { type: "sidebar-layout-changed", layout }));
       // A pin from the owner's phone shows at once in the sidebar of this computer.
@@ -1683,6 +1697,18 @@ if (!hasSingleInstanceLock) {
         // The services, and with them the saved language, may not exist yet. Then the system language applies.
         const locale = services?.language.locale ?? resolveLocale("system", app.getLocale());
         const translate = services?.language.translate ?? translateFor(locale);
+        // A newer OpenBot migrated the data: install that release instead of a dead-end error (#4969).
+        if (error instanceof NewerDatabaseError) {
+          recoverFromNewerDatabase({
+            window: windowHolder.current,
+            translate,
+            beforeInstall: prepareForUpdateInstall,
+          }).catch((recoveryError) => {
+            logger.error("The update over newer data failed:", toLogValue(recoveryError));
+            app.quit();
+          });
+          return;
+        }
         dialog.showErrorBox(
           translate("startup.failedTitle"),
           translate("startup.failedBody", { message: localizeSourceText(message, locale) }),
