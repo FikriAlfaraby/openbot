@@ -367,7 +367,35 @@
       "linux-x64": ["sunshine", "web-server", "streamer"],
       "linux-arm64": ["sunshine", "web-server", "streamer"]
     },
-    "releaseArtifacts": {}
+    "releaseArtifacts": {
+      "darwin-arm64": {
+        "asset": "remote-desktop-runtime-darwin-arm64.tar.gz",
+        "sha256": "1d2c912b837444a2385dd7de6f3352a974224f4deb4fc6b6b5f23a69ec216457"
+      },
+      "darwin-x64": {
+        "asset": "remote-desktop-runtime-darwin-x64.tar.gz",
+        "sha256": "59d107f0cc0f212301d5014faf39b16cb0079da06c1c7acf4fbe24fbece29ad1"
+      },
+      "win32-x64": {
+        "asset": "remote-desktop-runtime-win32-x64.tar.gz",
+        "sha256": "4ff56b4e4ecf69655315454ba018b709f6957249664f237f11d9089b95343dde"
+      },
+      "linux-x64": {
+        "asset": "remote-desktop-runtime-linux-x64.tar.gz",
+        "sha256": "5813854f3f4bd6114699ef09978118fbe9080d657c34546870ec285bf7d019cd"
+      },
+      "linux-arm64": {
+        "asset": "remote-desktop-runtime-linux-arm64.tar.gz",
+        "sha256": "80f2c326e1288bad4196469f266b152d9ff43010a115bb36c1d420521d660c93"
+      }
+    },
+    "artifactRelease": {
+      "repository": "FikriAlfaraby/openbot",
+      "tag": "remote-desktop-runtime-10fbd5000b046f19f45cb4995f48032553c3c192226d80e8a3d572578e148eec",
+      "inputDigest": "10fbd5000b046f19f45cb4995f48032553c3c192226d80e8a3d572578e148eec",
+      "manifestAsset": "remote-desktop-runtime-manifest.json",
+      "manifestSha256": "40ab209ee7b2c5ce88c52dac9a2cacf6728a06c5e901f521b9af265b1007602f"
+    }
   },
   "bun": {
     "registry": "https://registry.npmjs.org",
