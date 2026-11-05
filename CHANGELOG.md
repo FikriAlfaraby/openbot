@@ -6,6 +6,16 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.61.1] - 2026-11-05
+
+### Changed
+
+- The Browser pane of the side panel no longer has a second row with only a + button. New browser tab is now the first item of the + menu in the side panel header.
+- This fork build has all changes of OpenBot 0.61.0, with the fork's features: travel handover,
+  persona and rule overrides, the tool loop guard, page changes after browser actions, and Sign in
+  with Chrome. The remote desktop runtime is built again for the new Sunshine patch, also for Linux
+  arm64 servers.
+
 ## [0.61.0] - 2026-11-04
 
 ### Added
